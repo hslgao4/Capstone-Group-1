@@ -1,6 +1,8 @@
 import pandas as pd
 import numpy as np
 import matplotlib.pyplot as plt
+from sklearn.model_selection import train_test_split
+
 
 ### load data, year 2020, every 10 minutes ###
 def loaddata(start, end):
@@ -131,3 +133,18 @@ plt.tight_layout()
 plt.show()
 
 hourly_df.to_csv("hourly_weather.csv", index=False)
+
+
+# split into train, test, validation and save to csv
+seed = 6501
+
+df = pd.read_csv('hourly_weather.csv')
+train_df, remain_df = train_test_split(df, train_size=0.7, random_state=seed)
+val_df, test_df = train_test_split(remain_df, test_size=0.5, random_state=seed)
+
+train_df.to_csv("train_seasonal.csv", index=False)
+test_df.to_csv("test_seasonal.csv", index=False)
+val_df.to_csv("val_seasonal.csv", index=False)
+
+
+

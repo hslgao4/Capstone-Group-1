@@ -103,10 +103,19 @@ def Decomposition(path, item, date):
     plt.xticks(rotation=45)
     plt.tight_layout()
     plt.legend()
-    plt.show()
+    # plt.show()
 
     F = np.maximum(0, 1 - np.var(np.array(R))/np.var(np.array(T+R)))
     print(f'The strength of trend for this data set is {100*F:.2f}%')
 
     FS = np.maximum(0, 1 - np.var(np.array(R)) / np.var(np.array(S + R)))
     print(f'The strength of seasonality for this data set is  {100*FS:.2f}%')
+
+# Function 5: differencing
+def differencing(df, order, item):
+    diff_list = [0] * order
+    for i in range(order, len(df)):
+        diff = df.loc[i, item] - df.loc[i-order, item]
+        diff_list.append(diff)
+    return diff_list
+

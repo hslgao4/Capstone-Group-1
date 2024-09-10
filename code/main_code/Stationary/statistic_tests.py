@@ -3,6 +3,7 @@ import os, sys
 utils_dir = '../../component'
 sys.path.insert(0, os.path.abspath(utils_dir))
 from utils import *
+from classes import *
 
 
 df = pd.read_csv('./AR_1_data.csv')

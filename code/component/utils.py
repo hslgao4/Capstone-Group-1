@@ -4,6 +4,9 @@ from statsmodels.tsa.stattools import kpss
 import pandas as pd
 from statsmodels.tsa.seasonal import STL
 import numpy as np
+from statsmodels.graphics.tsaplots import plot_acf, plot_pacf
+import statsmodels.api as sm
+
 
 # Function_1: plot rolling mean & variance
 def plt_rolling_mean_var(df, item_list):
@@ -119,3 +122,15 @@ def differencing(df, order, item):
         diff_list.append(diff)
     return diff_list
 
+# ACF, PACF
+def ACF_PACF_Plot(y,lags):
+    acf = sm.tsa.stattools.acf(y, nlags=lags)
+    pacf = sm.tsa.stattools.pacf(y, nlags=lags)
+    fig = plt.figure()
+    plt.subplot(2,1,1)
+    plt.title('ACF/PACF of the raw data')
+    plot_acf(y, ax=plt.gca(), lags=lags)
+    plt.subplot(2,1,2)
+    plot_pacf(y, ax=plt.gca(), lags=lags)
+    fig.tight_layout(pad=3)
+    plt.show()

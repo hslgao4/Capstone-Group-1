@@ -14,18 +14,28 @@ class TimeSeriesGenerator:
             ar[t] = np.sum([ar_params[i] * ar[t - i - 1] for i in range(len(ar_params))]) + np.random.normal(scale=sigma)
         return ar
 
-    def generate_exog_input(self, type='random', **kwargs):
+    def generate_exog_input(self, custom_func=None, type='random', **kwargs):
+        if custom_func is not None:
+            return custom_func(self.n_samples, **kwargs)
         if type == 'random':
             return np.random.randn(self.n_samples)
         elif type == 'sine':
             period = kwargs.get('period', 365)
             amplitude = kwargs.get('amplitude', 1)
             return amplitude * np.sin(2 * np.pi * np.arange(self.n_samples) / period)
+        elif type == 'cosine':
+            period = kwargs.get('period', 365)
+            amplitude = kwargs.get('amplitude', 1)
+            return amplitude * np.cos(2 * np.pi * np.arange(self.n_samples) / period)
         elif type == 'trend':
             slope = kwargs.get('slope', 0.1)
             return slope * np.arange(self.n_samples)
+        elif type == 'exponential':
+            rate = kwargs.get('rate', 0.01)
+            return np.exp(rate * np.arange(self.n_samples))
         else:
             raise ValueError("Invalid exogenous input type")
+
 
     def add_seasonality(self, data, period=365, amplitude=1):
         seasonal = amplitude * np.sin(2 * np.pi * np.arange(self.n_samples) / period)
@@ -88,14 +98,15 @@ class TimeSeriesGenerator:
 
 
 # Example usage
-generator = TimeSeriesGenerator(n_samples=1000, freq='D')
+np.random.seed(6313)
+generator = TimeSeriesGenerator(n_samples=10000, freq='D')
 ts, exog, df_ts = generator.generate_time_series(
-    ar_params=[0.6, -0.3],
+    ar_params=[0.6],
     exog_params=[0.5],
-    exog_type='sine',
-    seasonality=True,
-    cyclicity=True,
-    stationary=False,
+    exog_type='random',
+    seasonality=False,
+    cyclicity=False,
+    trend=False,
     noise_scale=0.1,
     period=365,
     amplitude=2,
@@ -110,19 +121,6 @@ print(ts.autocorr(lag=1))
 print("\nCorrelation with exogenous input:")
 print(ts.corr(exog))
 
-
-# def plot_time_series(self, ts, exog, title="Generated Time Series"):
-#     """Plot the generated time series and exogenous input."""
-#     fig, (ax1, ax2) = plt.subplots(2, 1, figsize=(12, 8), sharex=True)
-#     ax1.plot(ts)
-#     ax1.set_title(title)
-#     ax1.set_ylabel("Value")
-#     ax2.plot(exog, color='red')
-#     ax2.set_title("Exogenous Input")
-#     ax2.set_xlabel("Date")
-#     ax2.set_ylabel("Value")
-#     plt.tight_layout()
-#     plt.show()
 
 plt.plot(ts)
 plt.show()

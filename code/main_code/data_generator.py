@@ -1,6 +1,8 @@
+import matplotlib.pyplot as plt
 import numpy as np
 import pandas as pd
-import matplotlib.pyplot as plt
+
+
 class TimeSeriesGenerator:
     def __init__(self, n_samples=1000, freq='D'):
         self.n_samples = n_samples
@@ -8,13 +10,16 @@ class TimeSeriesGenerator:
         self.date_range = pd.date_range(start='2023-01-01', periods=n_samples, freq=freq)
 
     def generate_ar_process(self, ar_params=[0.6, -0.3], sigma=1):
-        """Generate an autoregressive process."""
+        '''Start with AR process'''
         ar = np.zeros(self.n_samples)
         for t in range(len(ar_params), self.n_samples):
-            ar[t] = np.sum([ar_params[i] * ar[t - i - 1] for i in range(len(ar_params))]) + np.random.normal(scale=sigma)
+            ar[t] = np.sum([ar_params[i] * ar[t - i - 1] for i in range(len(ar_params))]) + np.random.normal(
+                scale=sigma)
         return ar
 
+
     def generate_exog_input(self, custom_func=None, type='random', **kwargs):
+        '''Add exogenous input'''
         if custom_func is not None:
             return custom_func(self.n_samples, **kwargs)
         if type == 'random':
@@ -36,16 +41,18 @@ class TimeSeriesGenerator:
         else:
             raise ValueError("Invalid exogenous input type")
 
-
-    def add_seasonality(self, data, period=365, amplitude=1):
-        seasonal = amplitude * np.sin(2 * np.pi * np.arange(self.n_samples) / period)
+    def add_seasonality(self, data, period_s=365, amplitude_s=1):
+        '''Optional to add seasonality'''
+        seasonal = amplitude_s * np.sin(2 * np.pi * np.arange(self.n_samples) / period_s)
         return data + seasonal
 
-    def add_cyclicity(self, data, period=1000, amplitude=1):
-        cyclic = amplitude * np.sin(2 * np.pi * np.arange(self.n_samples) / period)
+    def add_cyclicity(self, data, period_c=1000, amplitude_c=1):
+        '''Optional to add cyclicity - TBD'''
+        cyclic = amplitude_c * np.sin(2 * np.pi * np.arange(self.n_samples) / period_c)
         return data + cyclic
 
     def add_trend(self, data, trend_type='linear', **kwargs):
+        '''Optional to add trend'''
         if trend_type == 'linear':
             slope = kwargs.get('slope', 0.1)
             trend = slope * np.arange(self.n_samples)
@@ -56,15 +63,25 @@ class TimeSeriesGenerator:
             raise ValueError("Invalid trend type")
         return data + trend
 
-    def generate_time_series(self, ar_params=[0.6, -0.3], exog_params=[0.5],
-                             exog_type='random', seasonality=False, cyclicity=False,
+    def generate_time_series(self, ar_params=[0.6, -0.3], exog_inputs=None,
+                             seasonality=False, cyclicity=False,
                              trend=True, noise_scale=0.1, **kwargs):
         """Generate the final time series."""
         ar_component = self.generate_ar_process(ar_params, sigma=noise_scale)
-        exog_input = self.generate_exog_input(type=exog_type, **kwargs)
-        exog_component = np.sum([exog_params[i] * exog_input for i in range(len(exog_params))], axis=0)
 
-        ts = ar_component + exog_component
+        # Handle exogenous inputs
+        if exog_inputs is None:
+            exog_inputs = [{'type': 'random', 'param': 0.5}] # by default one input
+
+        exog_components = [] # with more than one exogenous inouts
+        for exog in exog_inputs:
+            exog_type = exog.get('type', 'random')
+            exog_param = exog.get('param', 0.5)
+            exog_kwargs = exog.get('kwargs', {})
+            exog_input = self.generate_exog_input(type=exog_type, **exog_kwargs)
+            exog_components.append(exog_param * exog_input)
+
+        ts = ar_component + np.sum(exog_components, axis=0)
 
         if seasonality:
             seasonal_kwargs = {k: kwargs[k] for k in ['period', 'amplitude'] if k in kwargs}
@@ -72,55 +89,21 @@ class TimeSeriesGenerator:
         if cyclicity:
             cyclic_kwargs = {k: kwargs[k] for k in ['period', 'amplitude'] if k in kwargs}
             ts = self.add_cyclicity(ts, **cyclic_kwargs)
-        if not trend:
-            nonstationary_kwargs = {k: kwargs[k] for k in ['trend_type', 'slope', 'rate'] if k in kwargs}
-            ts = self.add_trend(ts, **nonstationary_kwargs)
+        if trend:
+            trend_kwargs = {k: kwargs[k] for k in ['trend_type', 'slope', 'rate'] if k in kwargs}
+            ts = self.add_trend(ts, **trend_kwargs)
 
         ts_series = pd.Series(ts, index=self.date_range)
-        exog_series = pd.Series(exog_input, index=self.date_range)
-        df_ts = pd.DataFrame({'time_series': ts, 'exog_input': exog_input}, index=self.date_range)
-        return ts_series, exog_series, df_ts
+        exog_df = pd.DataFrame({f'exog_{i}': comp for i, comp in enumerate(exog_components)}, index=self.date_range)
+        df_ts = pd.concat([pd.DataFrame({'time_series': ts}, index=self.date_range), exog_df], axis=1)
 
+        return ts_series, exog_df, df_ts
 
-    def plot_time_series(self, ts, exog, title="Generated Time Series"):
-        """Plot the generated time series and exogenous input."""
-        fig, (ax1, ax2) = plt.subplots(2, 1, figsize=(12, 8), sharex=True)
-        ax1.plot(ts)
-        ax1.set_title(title)
-        ax1.set_ylabel("Value")
-        ax2.plot(exog, color='red')
-        ax2.set_title("Exogenous Input")
-        ax2.set_xlabel("Date")
-        ax2.set_ylabel("Value")
-        plt.tight_layout()
+    def plot_time_series(self, ts):
+        plt.figure(figsize=(10, 8))
+        plt.plot(ts)
+        plt.xlabel('Date')
+        plt.ylabel('Magnitude')
+        plt.title('Genrated Time Series data over Date')
+        plt.xticks(rotation=45)
         plt.show()
-
-
-
-# Example usage
-np.random.seed(6313)
-generator = TimeSeriesGenerator(n_samples=10000, freq='D')
-ts, exog, df_ts = generator.generate_time_series(
-    ar_params=[0.6],
-    exog_params=[0.5],
-    exog_type='random',
-    seasonality=False,
-    cyclicity=False,
-    trend=False,
-    noise_scale=0.1,
-    period=365,
-    amplitude=2,
-    slope=0.01
-)
-
-generator.plot_time_series(ts, exog)
-
-print(ts.head())
-print("\nAutocorrelation:")
-print(ts.autocorr(lag=1))
-print("\nCorrelation with exogenous input:")
-print(ts.corr(exog))
-
-
-plt.plot(ts)
-plt.show()

@@ -7,8 +7,8 @@ import numpy as np
 from statsmodels.graphics.tsaplots import plot_acf, plot_pacf
 import statsmodels.api as sm
 
-
-# Function_1: plot rolling mean & variance
+'''EDA Part function'''
+# plot rolling mean & variance
 def plt_rolling_mean_var(df, item_list):
     def rolling_mean_var(df, x):
         rolling_mean = []
@@ -48,7 +48,7 @@ def plt_rolling_mean_var(df, item_list):
     plt.show()
 
 
-# Function_2: ADF test
+# ADF test
 def ADF_test(x):
     result = adfuller(x)
     print("ADF Statistic: %f" % result[0])
@@ -62,7 +62,7 @@ def ADF_test(x):
         print('Fail to pass ADF test.')
 
 
-# Function_3: KPSS test
+# KPSS test
 def kpss_test(timeseries):
     print('Results of KPSS Test:')
     kpsstest = kpss(timeseries, regression='c', nlags="auto")
@@ -79,7 +79,7 @@ def kpss_test(timeseries):
     else:
         print('Fail to pass KPSS test.')
 
-# Function 4: Decomposition
+# Decomposition
 def Decomposition(path, item, date):
     df = pd.read_csv(path, parse_dates=[date])
     df.set_index(date, inplace=True)
@@ -114,7 +114,7 @@ def Decomposition(path, item, date):
     FS = np.maximum(0, 1 - np.var(np.array(R)) / np.var(np.array(S + R)))
     print(f'The strength of seasonality for this data set is  {100*FS:.2f}%')
 
-# Function 5: differencing
+# differencing
 def differencing(df, order, item):
     diff_list = [0] * order
     for i in range(order, len(df)):
@@ -134,3 +134,100 @@ def ACF_PACF_Plot(y,lags):
     plot_pacf(y, ax=plt.gca(), lags=lags)
     fig.tight_layout(pad=3)
     plt.show()
+
+# simple line plot
+def plot_time_series(ts):
+    plt.figure(figsize=(10, 8))
+    plt.plot(ts)
+    plt.xlabel('Date')
+    plt.ylabel('Magnitude')
+    plt.title('Genrated Time Series data over Date')
+    plt.xticks(rotation=45)
+    plt.show()
+
+
+
+
+'''Data generator function'''
+# generate data using SARIMAX, which can handle AR, MA, ARMA, ARIMA, SARIMA, and multiplicative
+def generate_sarima_data(sample_size=5000,
+                         ar_para=[0.6], ma_para=[-0.4],
+                         sar_para=[0.5], sma_para=[-0.3],
+                         d=1, D=1, seasonal_period=12, var_WN=1):
+    std = np.sqrt(var_WN)
+
+    # Set up SARIMAX model for SARIMA (no exogenous inputs)
+    sarimax_model = sm.tsa.SARIMAX(endog=np.zeros(sample_size),  # Dummy endog to initialize the model
+                                   order=(len(ar_para), d, len(ma_para)),  # Non-seasonal ARIMA order
+                                   seasonal_order=(len(sar_para), D, len(sma_para), seasonal_period),  # Seasonal ARIMA order
+                                   trend='n',  # No trend
+                                   enforce_stationarity=False,  # Relax stationarity constraint for simulation
+                                   enforce_invertibility=False)  # Relax invertibility constraint
+
+    params = np.r_[ar_para, ma_para, sar_para, sma_para, std]
+    simulated_data = sarimax_model.simulate(params=params, nsimulations=sample_size, measurement_shock_scale=std)
+
+    return simulated_data
+
+
+
+def gen_arma(sample=5000, ar_para=[0.6, -0.3], ma_para=[0.1, 0.2], var_WN=1):
+    std = np.sqrt(var_WN)
+    arparams = np.array(ar_para)
+    maparams = np.array(ma_para)
+    ar = np.r_[1, arparams]
+    ma = np.r_[1, maparams]
+    arma_process = sm.tsa.ArmaProcess(ar, ma)
+    arma_data = arma_process.generate_sample(sample, scale=std)
+    return arma_data
+
+
+
+# deterministic approach to generate data
+def gen_deterministic(samples=5000, custom_func=None, type='random', **kwargs):
+    if custom_func is not None:
+        return custom_func(samples, **kwargs)
+    if type == 'random':
+        mean = kwargs.get('mean', 0)
+        std = kwargs.get('std', 1)
+        return np.random.normal(mean, std, samples)
+    elif type == 'sine':
+        period = kwargs.get('period', 365)
+        amplitude = kwargs.get('amplitude', 1)
+        return amplitude * np.sin(2 * np.pi * np.arange(samples) / period)
+    elif type == 'cosine':
+        period = kwargs.get('period', 365)
+        amplitude = kwargs.get('amplitude', 1)
+        return amplitude * np.cos(2 * np.pi * np.arange(samples) / period)
+    elif type == 'linear':
+        slope = kwargs.get('slope', 0.1)
+        return slope * np.arange(samples)
+    elif type == 'exponential':
+        rate = kwargs.get('rate', 0.01)
+        return np.exp(rate * np.arange(samples))
+    else:
+        raise ValueError("Invalid input type")
+
+# deterministic approach to add seasonality to data
+def seasonality_determ(data, period_s=365, amplitude=1):
+    samples = data.shape[0]
+    seasonal = amplitude * np.sin(2 * np.pi * np.arange(samples) / period_s)
+    seasonal_data = data + seasonal
+    # seasonal_data = seasonal_data.round(2)
+    return seasonal_data
+
+
+# deterministic approach to add trend to data
+def trend_determ(data, trend_type='linear', **kwargs):
+    samples = data.shape[0]
+    if trend_type == 'linear':
+        slope = kwargs.get('slope', 0.1)
+        trend = slope * np.arange(samples)
+    elif trend_type == 'exponential':
+        rate = kwargs.get('rate', 0.001)
+        trend = np.exp(rate * np.arange(samples))
+    else:
+        raise ValueError("Invalid trend type")
+    trended_data = data + trend
+    # trended_data = trended_data.round(2)
+    return trended_data

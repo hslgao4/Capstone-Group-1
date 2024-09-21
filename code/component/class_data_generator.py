@@ -27,8 +27,8 @@ class TimeSeriesGenerator:
 
         # add random noise
         data = data + np.random.normal(noise_mean, np.sqrt(noise_var), self.n_samples)
-
-        return data#pd.DataFrame(data, index=self.date_range)
+        data_df = pd.DataFrame({'ts_data': data}, index=self.date_range)
+        return data, data_df
 
 
     # 2. generate stochastic data by models: AR, MA, ARMA, ARIMA, SARIMA, Multiplicative
@@ -40,12 +40,15 @@ class TimeSeriesGenerator:
                          ar_para=ar_para, ma_para=ma_para,
                          sar_para=sar_para, sma_para=sma_para,
                          d=d, D=D, seasonal_period=seasonal_period, var_WN=var_WN)
-        return data
+
+        data_df = pd.Series(data, index=self.date_range)
+
+        return data, data_df
 
     '''II. Generate data with one exogenous input'''
     # 1. deterministic approach
-    def gen_determ_data_exo_1(self, exog_inputs, **kwargs):
-        data = self.gen_determ_data(self, inputs=[{'type': 'random', 'param': 1}], noise_mean=0, noise_var=1, seasonality=False, trend=False, **kwargs)
+    def gen_determ_data_exo_1(self, data_inputs, exog_inputs, noise_mean, noise_var, seasonality, trend, **kwargs):
+        data, df = self.gen_determ_data(data_inputs, noise_mean, noise_var, seasonality, trend, **kwargs)
 
         if exog_inputs is None:
             exog_inputs = {'type': 'random', 'param': 0.5}  # by default one input
@@ -65,4 +68,4 @@ class TimeSeriesGenerator:
 
 
     # 2. stochastic approach with Box-Jenkins model
-
+    # def gen_box_jenkins(self, ):

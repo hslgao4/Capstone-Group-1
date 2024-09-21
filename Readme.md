@@ -18,29 +18,20 @@ ___
 ```
 .
 ├── code
-│   ├── component
-│   └── main_code
+│   ├── component
+│   └── main_code
 ├── demo
-│   └── fig
+│   └── fig
 ├── full_report
-│   ├── Latex_report
-│   │   └── fig
-│   ├── Markdown_Report
-│   └── Word_Report
+│   ├── Latex_report
+│   │   └── fig
+│   ├── Markdown_Report
+│   └── Word_Report
 ├── presentation
 └── research_paper
     ├── Latex
-    │   └── Fig
+    │   └── Fig
     └── Word
 ```
 
 ___
-## Instruction for facing GitHub page
-
-- Every group need to summarize the whole project to a one-minute video.
-- It should showcase the main points. 
-
-
-![Watch the video](../Sample_Capstone/demo/fig/demo.gif)
-
-

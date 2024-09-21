@@ -8,8 +8,8 @@
     
 
   - II. Data with one Exogenous Input 
-    - I + random/sine/cosine/customized function ...
-    - By Box-Jenkins model, generating u(t) first using I, then generating y(t)
+    - Deterministic： I + random/sine/cosine/customized function ...
+    - Stachastic： By Box-Jenkins model, generating u(t) first using I, then generating y(t)
     
        { y(t) = G(q)*u(t) + H(q)*e(t) }
     

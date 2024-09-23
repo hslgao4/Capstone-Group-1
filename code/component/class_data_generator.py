@@ -11,6 +11,7 @@ class TimeSeriesGenerator:
     '''I. Generate data without exogenous input'''
     # 1. generate deterministic data: customized function, sine, cosine, random, linear, exponential
     def gen_determ_data(self, inputs={'type': 'random', 'param': 1}, noise_mean=0, noise_var=1, seasonality=False, trend=False, **kwargs):
+
         type = inputs.get('type', 'random')
         param = inputs.get('param', 1)
         kwarg = inputs.get('kwargs', {})
@@ -32,14 +33,25 @@ class TimeSeriesGenerator:
 
 
     # 2. generate stochastic data by models: AR, MA, ARMA, ARIMA, SARIMA, Multiplicative
-    def gen_stochs_data(self, ar_para=[0.6], ma_para=[-0.4],
-                         sar_para=[0.5], sma_para=[-0.3],
-                         d=1, D=1, seasonal_period=12, var_WN=1):
+    def gen_stochs_data(self,
+                        ar_para=[0.6],
+                        ma_para=[-0.4],
+                        sar_para=[0.5],
+                        sma_para=[-0.3],
+                        d=1,
+                        D=1,
+                        seasonal_period=12,
+                        var_WN=1):
 
         data = generate_sarima_data(sample_size=self.n_samples,
-                         ar_para=ar_para, ma_para=ma_para,
-                         sar_para=sar_para, sma_para=sma_para,
-                         d=d, D=D, seasonal_period=seasonal_period, var_WN=var_WN)
+                                    ar_para=ar_para,
+                                    ma_para=ma_para,
+                                    sar_para=sar_para,
+                                    sma_para=sma_para,
+                                    d=d,
+                                    D=D,
+                                    seasonal_period=seasonal_period,
+                                    var_WN=var_WN)
 
         data_df = pd.Series(data, index=self.date_range)
 

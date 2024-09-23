@@ -146,6 +146,58 @@ def plot_time_series(ts):
     plt.show()
 
 
+import pandas as pd
+import numpy as np
+
+import numpy as np
+import matplotlib.pyplot as plt
+
+# statistics table comparison
+def plot_data_statistics(data_list, names=None):
+    if names is None:
+        names = [f"Data {i + 1}" for i in range(len(data_list))]
+
+    if len(names) != len(data_list):
+        raise ValueError("The number of names must match the number of datasets.")
+
+    stats = []
+    for data in data_list:
+        stats.append([
+            f"{np.mean(data):.2f}",
+            f"{np.var(data):.2f}",
+            f"{np.std(data):.2f}",
+            f"{np.percentile(data, 25):.2f}",
+            f"{np.median(data):.2f}",
+            f"{np.percentile(data, 75):.2f}"
+        ])
+
+    fig, ax = plt.subplots(figsize=(12, len(data_list) + 2))
+    ax.axis('off')
+
+    table = ax.table(
+        cellText=stats,
+        rowLabels=names,
+        colLabels=['Mean', 'Variance', 'Std Dev', 'Q1', 'Median', 'Q3'],
+        loc='center',
+        cellLoc='center'
+    )
+
+    table.auto_set_font_size(False)
+    table.set_fontsize(10)
+    table.scale(1.2, 1.5)
+
+    plt.title("Comparison of Dataset Statistics")
+    plt.tight_layout()
+    plt.show()
+
+
+# Example usage:
+# Assuming you have multiple pandas Series or numpy arrays
+# data1 = df1['data']
+# data2 = df2['data']
+# data3 = df3['data']
+
+# plot_data_statistics([data1, data2, data3], ['Dataset 1', 'Dataset 2', 'Dataset 3'])
 
 
 '''Data generator function'''
@@ -158,8 +210,8 @@ def generate_sarima_data(sample_size=5000,
 
     # Set up SARIMAX model for SARIMA (no exogenous inputs)
     sarimax_model = sm.tsa.SARIMAX(endog=np.zeros(sample_size),  # Dummy endog to initialize the model
-                                   order=(len(ar_para), d, len(ma_para)),  # Non-seasonal ARIMA order
-                                   seasonal_order=(len(sar_para), D, len(sma_para), seasonal_period),  # Seasonal ARIMA order
+                                   order=(len(ar_para), d, len(ma_para)),  # Non-seasonal ARIMA
+                                   seasonal_order=(len(sar_para), D, len(sma_para), seasonal_period),  # Seasonal ARIMA
                                    trend='n',  # No trend
                                    enforce_stationarity=False,  # Relax stationarity constraint for simulation
                                    enforce_invertibility=False)  # Relax invertibility constraint

@@ -53,9 +53,9 @@ def ADF_test(x):
     result = adfuller(x)
     print("ADF Statistic: %f" % result[0])
     print('p-value: %f' % result[1])
-    # print('Critical Values:')
-    # for key, value in result[4].items():
-    #     print('\t%s: %.3f' % (key, value))
+    print('Critical Values:')
+    for key, value in result[4].items():
+        print('\t%s: %.3f' % (key, value))
     if result[1] < 0.05:
         print('Pass ADF test.')
     else:
@@ -69,10 +69,10 @@ def kpss_test(timeseries):
     kpss_output = pd.Series(kpsstest[0:3], index=[
                             'Test Statistic', 'p-value', 'Lags Used'])
     print('p-value: %f' % kpsstest[1])
-    # for key, value in kpsstest[3].items():
-    #     kpss_output['Critical Value (%s)' % key] = value
-    #
-    # print(kpss_output)
+    for key, value in kpsstest[3].items():
+        kpss_output['Critical Value (%s)' % key] = value
+
+    print(kpss_output)
 
     if kpsstest[1] > 0.05:
         print('Pass KPSS test.')
@@ -189,15 +189,6 @@ def plot_data_statistics(data_list, names=None):
     plt.title("Comparison of Dataset Statistics")
     plt.tight_layout()
     plt.show()
-
-
-# Example usage:
-# Assuming you have multiple pandas Series or numpy arrays
-# data1 = df1['data']
-# data2 = df2['data']
-# data3 = df3['data']
-
-# plot_data_statistics([data1, data2, data3], ['Dataset 1', 'Dataset 2', 'Dataset 3'])
 
 
 '''Data generator function'''

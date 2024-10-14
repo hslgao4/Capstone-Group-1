@@ -7,21 +7,21 @@
 - Topics of discussion
     - The whole pipeline
   
-    ![img_1.png](img_1.png)
+![img_1.png](img_1.png)
     
 
 
 
 - Action Items:
 
-* [ ] Create a Data folder
-* [ ] Script to read data and EDA (.py file and notebook)
-* [ ] Word document - characteristics of data
+* [&check;] Create a Data folder
+* [&check;] Script to read data and EDA (.py file and notebook)
+* [&check;] Word document - characteristics of data
 * [ ] Model class(1. AR, MA...; 2. LSTM, GRU; 3. Transfomer;  4. Seq2Seq, optional)
 * [ ] Metric class: table to compare RMSE, MSE...
 * [ ] Metric graph: compare prediction vs. actual for models, by dataset
-* [ ] Literature Review: what dataset other used; data's characteristics; any preprocessing; model selection; solve what problem
-
+* [&check;] Literature Review: what dataset other used; data's characteristics; any preprocessing; model selection; solve what problem
+* [ ] Populate the literature review results and any fingdings in the full report 
 ---
 ### Date: Oct 2 2024 
 - Topics of discussion

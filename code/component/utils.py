@@ -1,4 +1,5 @@
 import matplotlib.pyplot as plt
+import statsmodels
 from statsmodels.tsa.stattools import adfuller
 from statsmodels.tsa.stattools import kpss
 import pandas as pd
@@ -6,6 +7,16 @@ from statsmodels.tsa.seasonal import STL
 import numpy as np
 from statsmodels.graphics.tsaplots import plot_acf, plot_pacf
 import statsmodels.api as sm
+import copy
+import seaborn as sns
+from sklearn.metrics import mean_squared_error
+from sklearn.metrics import mean_absolute_error
+from sklearn.model_selection import train_test_split
+from statsmodels.tsa.statespace.sarimax import SARIMAX
+from sklearn.base import BaseEstimator
+from statsmodels.tsa.arima.model import ARIMA
+from sklearn.model_selection import TimeSeriesSplit, GridSearchCV
+import optuna
 
 '''EDA Part function'''
 # plot rolling mean & variance
@@ -16,7 +27,7 @@ def plt_rolling_mean_var(df, item_list):
         for i in range(1, len(df) + 1):
             new_df = df.iloc[:i, ]
             if i == 1:
-                mean = new_df[x]
+                mean = new_df[x].iloc[0]
                 var = 0
             else:
                 mean = new_df[x].mean()
@@ -24,26 +35,29 @@ def plt_rolling_mean_var(df, item_list):
             rolling_mean.append(mean)
             rolling_var.append(var)
         return rolling_mean, rolling_var
-    plt.figure(figsize=(8, 7))
-    plt.subplot(2, 1, 1)
-    for i in item_list:
-        roll_mean, roll_var = rolling_mean_var(df, i)
 
-        plt.plot(roll_mean, label=i, lw=1.5)
+    # Call rolling_mean_var with the item_list as the column name
+    roll_mean, roll_var = rolling_mean_var(df, item_list)
+
+    # Plot the results
+    plt.figure(figsize=(8, 7))
+
+    # Subplot 1: Rolling Mean
+    plt.subplot(2, 1, 1)
+    plt.plot(roll_mean, label=item_list, lw=1.5)
     plt.xlabel('Samples')
     plt.ylabel('Magnitude')
     plt.title('Rolling Mean')
     plt.legend()
 
+    # Subplot 2: Rolling Variance
     plt.subplot(2, 1, 2)
-    for i in item_list:
-        roll_mean, roll_var = rolling_mean_var(df, i)
-
-        plt.plot(roll_var, label=i, lw=1.5)
+    plt.plot(roll_var, label=item_list, lw=1.5)
     plt.xlabel('Samples')
     plt.ylabel('Magnitude')
     plt.title('Rolling Variance')
     plt.legend()
+
     plt.tight_layout()
     plt.show()
 
@@ -80,10 +94,10 @@ def kpss_test(timeseries):
         print('Fail to pass KPSS test.')
 
 # Decomposition
-def Decomposition(path, item, date):
-    df = pd.read_csv(path, parse_dates=[date])
+def Decomposition(df, item, date, period):
+    # df = pd.read_csv(path, parse_dates=[date])
     df.set_index(date, inplace=True)
-    stl = STL(df[item], period=24)
+    stl = STL(df[item], period=period)
     res = stl.fit()
     T = res.trend
     S = res.seasonal
@@ -136,21 +150,16 @@ def ACF_PACF_Plot(y,lags):
     plt.show()
 
 # simple line plot
-def plot_time_series(ts):
-    plt.figure(figsize=(10, 8))
-    plt.plot(ts)
+def plot_time_series(df):
+    plt.figure(figsize=(16, 10))
+    plt.plot(df[df.columns[0]], df[df.columns[1]])
     plt.xlabel('Date')
     plt.ylabel('Magnitude')
-    plt.title('Genrated Time Series data over Date')
+    plt.title(f'{df.columns[1]} over Date')
     plt.xticks(rotation=45)
     plt.show()
 
 
-import pandas as pd
-import numpy as np
-
-import numpy as np
-import matplotlib.pyplot as plt
 
 # statistics table comparison
 def plot_data_statistics(data_list, names=None):
@@ -190,87 +199,105 @@ def plot_data_statistics(data_list, names=None):
     plt.tight_layout()
     plt.show()
 
+# ACF plot
+def plt_ACF(y, lag):
+    mean = np.mean(y)
+    D = sum((y-mean)**2)
+    R = []
+    for tao in range(lag+1):
+        S = 0
+        for t in range(tao, len(y)):
+            N = (y[t]-mean)*(y[t-tao]-mean)
+            S += N
+        r = S/D
+        R.append(r)
+    R_inv = R[::-1]
+    Magnitute = R_inv + R[1:]
+    # ACF = plt.figure()
+    plt.figure()
+    x_values = range(-lag, lag + 1)
+    (markers, stemlines, baseline) = plt.stem(x_values, Magnitute, markerfmt='o')
+    plt.setp(markers, color = 'red')
+    m = 1.96/np.sqrt(len(y))
+    plt.axhspan(-m, m, alpha = 0.2, color = 'blue')
+    plt.xlabel('Lags')
+    plt.ylabel('Magnitute')
+    plt.title(f'ACF plot' )
+    plt.show()
+    # return ACF
 
-'''Data generator function'''
-# generate data using SARIMAX, which can handle AR, MA, ARMA, ARIMA, SARIMA, and multiplicative
-def generate_sarima_data(sample_size=5000,
-                         ar_para=[0.6], ma_para=[-0.4],
-                         sar_para=[0.5], sma_para=[-0.3],
-                         d=1, D=1, seasonal_period=12, var_WN=1):
-    std = np.sqrt(var_WN)
+def cal_ACF(y, lag):
+    mean = np.mean(y)
+    D = sum((y-mean)**2)
+    R = []
+    for tao in range(lag+1):
+        S = 0
+        for t in range(tao, len(y)):
+            N = (y[t]-mean)*(y[t-tao]-mean)
+            S += N
+        r = S/D
+        R.append(r)
+    return R
 
-    # Set up SARIMAX model for SARIMA (no exogenous inputs)
-    sarimax_model = sm.tsa.SARIMAX(endog=np.zeros(sample_size),  # Dummy endog to initialize the model
-                                   order=(len(ar_para), d, len(ma_para)),  # Non-seasonal ARIMA
-                                   seasonal_order=(len(sar_para), D, len(sma_para), seasonal_period),  # Seasonal ARIMA
-                                   trend='n',  # No trend
-                                   enforce_stationarity=False,  # Relax stationarity constraint for simulation
-                                   enforce_invertibility=False)  # Relax invertibility constraint
-
-    params = np.r_[ar_para, ma_para, sar_para, sma_para, std]
-    simulated_data = sarimax_model.simulate(params=params, nsimulations=sample_size, measurement_shock_scale=std)
-
-    return simulated_data
-
-
-
-def gen_arma(sample=5000, ar_para=[0.6, -0.3], ma_para=[0.1, 0.2], var_WN=1):
-    std = np.sqrt(var_WN)
-    arparams = np.array(ar_para)
-    maparams = np.array(ma_para)
-    ar = np.r_[1, arparams]
-    ma = np.r_[1, maparams]
-    arma_process = sm.tsa.ArmaProcess(ar, ma)
-    arma_data = arma_process.generate_sample(sample, scale=std)
-    return arma_data
-
-
-
-# deterministic approach to generate data
-def gen_deterministic(samples=5000, custom_func=None, type='random', **kwargs):
-    if custom_func is not None:
-        return custom_func(samples, **kwargs)
-    if type == 'random':
-        mean = kwargs.get('mean', 0)
-        std = kwargs.get('std', 1)
-        return np.random.normal(mean, std, samples)
-    elif type == 'sine':
-        period = kwargs.get('period', 365)
-        amplitude = kwargs.get('amplitude', 1)
-        return amplitude * np.sin(2 * np.pi * np.arange(samples) / period)
-    elif type == 'cosine':
-        period = kwargs.get('period', 365)
-        amplitude = kwargs.get('amplitude', 1)
-        return amplitude * np.cos(2 * np.pi * np.arange(samples) / period)
-    elif type == 'linear':
-        slope = kwargs.get('slope', 0.1)
-        return slope * np.arange(samples)
-    elif type == 'exponential':
-        rate = kwargs.get('rate', 0.01)
-        return np.exp(rate * np.arange(samples))
+def cal_fi(j, k, ACF):
+    if k == 1:
+        up = ACF[j+1]
+        bottom = ACF[j]
+        if bottom == 0:
+            fi = "inf"
+        else:
+            fi = up / bottom
     else:
-        raise ValueError("Invalid input type")
+        Den = []
+        for a in range(j, j + k):
+            row = []
+            for b in range(a - (k - 1), a + 1):
+                b = abs(b)
+                R = ACF[b]
+                row.append(R)
+            row = row[::-1]
+            Den.append(row)
 
-# deterministic approach to add seasonality to data
-def seasonality_determ(data, period_s=365, amplitude=1):
-    samples = data.shape[0]
-    seasonal = amplitude * np.sin(2 * np.pi * np.arange(samples) / period_s)
-    seasonal_data = data + seasonal
-    # seasonal_data = seasonal_data.round(2)
-    return seasonal_data
+        Num = copy.deepcopy(Den)
+        for i in range(k):
+            Num[i][-1] = ACF[j + 1 + i]
+        up = np.linalg.det(Num)
+        bottom = np.linalg.det(Den)
 
+        if bottom == 0:
+            fi = "inf"
+        else:
+            fi = up / bottom
+            if abs(fi) < 0.0000001:
+                fi = 0
+    return fi
 
-# deterministic approach to add trend to data
-def trend_determ(data, trend_type='linear', **kwargs):
-    samples = data.shape[0]
-    if trend_type == 'linear':
-        slope = kwargs.get('slope', 0.1)
-        trend = slope * np.arange(samples)
-    elif trend_type == 'exponential':
-        rate = kwargs.get('rate', 0.001)
-        trend = np.exp(rate * np.arange(samples))
-    else:
-        raise ValueError("Invalid trend type")
-    trended_data = data + trend
-    # trended_data = trended_data.round(2)
-    return trended_data
+def GPAC_table(y, J=7, K=7):
+    ACF = cal_ACF(y, J+K+1)
+    temp = np.zeros((J, K - 1))
+    for k in range(1, K):
+        for j in range(J):
+            value = cal_fi(j, k, ACF)
+            temp[j][k-1] = value
+    table = pd.DataFrame(temp)
+    table = table.round(2)
+    table.columns = range(1, K)
+    plt.figure()
+    sns.heatmap(table, annot=True)
+    plt.title("Generalized Partial Autocorrelation(GPAC) Table")
+    plt.show()
+    return table
+
+# metric function
+def MSE(y_true, y_pred):
+    return mean_squared_error(y_true, y_pred)
+
+def RMSE(y_true, y_pred):
+    mse = mean_squared_error(y_true, y_pred)
+    return np.sqrt(mse)
+
+def MAE(y_true, y_pred):
+    return mean_absolute_error(y_true, y_pred)
+
+def neg_MSE(y_true, y_pred):
+    return -mean_squared_error(y_true, y_pred)

@@ -16,7 +16,12 @@ from statsmodels.tsa.statespace.sarimax import SARIMAX
 from sklearn.base import BaseEstimator
 from statsmodels.tsa.arima.model import ARIMA
 from sklearn.model_selection import TimeSeriesSplit, GridSearchCV
+from prettytable import PrettyTable
 import optuna
+import sys
+sys.path.append('../component')
+from class_ARIMA_model import ARIMA_model
+from class_SARIMA_model import SARIMA_Model
 
 '''EDA Part function'''
 # plot rolling mean & variance
@@ -135,6 +140,15 @@ def differencing(df, order, item):
         diff = df.loc[i, item] - df.loc[i-order, item]
         diff_list.append(diff)
     return diff_list
+
+
+# reverse differencing
+def rev_diff(value, forecast):
+    rev_forecast = []
+    for i in range(0, len(forecast)):
+        value += forecast[i]
+        rev_forecast.append(value)
+    return rev_forecast
 
 # ACF, PACF
 def ACF_PACF_Plot(y,lags):
@@ -299,5 +313,152 @@ def RMSE(y_true, y_pred):
 def MAE(y_true, y_pred):
     return mean_absolute_error(y_true, y_pred)
 
-def neg_MSE(y_true, y_pred):
-    return -mean_squared_error(y_true, y_pred)
+
+
+# plot
+def plt_forecast(df_test, rev_forecast):
+    plt.figure(figsize=(16, 10))
+    plt.plot(df_test.index, df_test.iloc[:, 0], label='Test Data', color='red')
+    plt.plot(df_test.index, rev_forecast, label='Forecast', color='green')
+    plt.xlabel('Index')
+    plt.ylabel('Magnitude')
+    plt.legend()
+    plt.title('Test, and Predicted Values')
+    plt.show()
+
+def plt_prediction(df_train, rev_pred):
+    plt.figure(figsize=(12, 6))
+    plt.plot(df_train.index, df_train.iloc[:, 0], label='Train')
+    plt.plot(df_train.index, rev_pred, label='Prediction')
+    plt.xlabel('Index')
+    plt.ylabel('Magnitude')
+    plt.legend()
+    plt.title('Train vs Predicted values')
+    plt.show()
+
+def plt_train_test_forecast(df_train, df_test, rev_forecast):
+    plt.figure(figsize=(12, 6))
+    plt.plot(df_train.index, df_train.iloc[:, 0], label='Train', color='blue')
+    plt.plot(df_test.index, df_test.iloc[:, 0], label='Test', color='red')
+    plt.plot(df_test.index, rev_forecast, label='Forecast', color='green')
+    plt.xlabel('Index')
+    plt.ylabel('Magnitude')
+    plt.title('Train vs Test vs Forecast')
+    plt.legend()
+    plt.show()
+
+def tabel_pretty(df,title):
+    x = PrettyTable()
+    for i in range(df.shape[0]):
+        x.add_row(df.iloc[i,:])
+    x.title = title
+    x.field_names = df.columns
+    x.float_format = '.2'
+    x.hrules = 1
+    print(x.get_string())
+
+
+def neg_mean_squared_error(estimator, X, y=None):
+    y_pred = estimator.predict(X)
+    return -mean_squared_error(X.ravel(), y_pred)
+
+# grid_search with sk-learn
+def grid_sklearn(data, param_grid, model, n_splits=5):
+    tscv = TimeSeriesSplit(n_splits)
+
+    grid_search = GridSearchCV(estimator=model,
+                               param_grid=param_grid,
+                               cv=tscv,
+                               scoring=neg_mean_squared_error,
+                               verbose=1)
+
+    grid_search.fit(data)
+
+    print(f"Best parameters: {grid_search.best_params_}")
+    print(f"Lowest metric score: {-grid_search.best_score_}")
+
+    best_order = grid_search.best_params_[list(param_grid.keys())]
+    return best_order
+
+
+# optuna for ARIMA
+def ARIMA_objective(trial, data,
+                    ar_max=None, ma_max=None, integ_order=None):
+
+    ar_order = trial.suggest_int('AR_order', 1, ar_max) if ar_max is not None else 0
+    ma_order = trial.suggest_int('MA_order', 1, ma_max) if ma_max is not None else 0
+    inte_order = integ_order if integ_order is not None else 0
+
+    tscv = TimeSeriesSplit(n_splits=5)
+    mse_scores = []
+
+    for train_index, test_index in tscv.split(data):
+        train, test = data[train_index], data[test_index]
+        model = ARIMA_model(AR_order=ar_order, MA_order=ma_order, Inte_order=inte_order)
+        model.fit(train)
+        predictions = model.predict(test)
+        mse = MSE(test, predictions)
+        mse_scores.append(mse)
+
+    return np.mean(mse_scores)
+
+
+def optuna_search_ARIMA(data,
+                        ar_max=None, ma_max=None, integ_order=None,
+                        objective=ARIMA_objective, n_trials=5):
+
+    study = optuna.create_study(direction='minimize')
+    study.optimize(lambda trial: objective(trial, data, ar_max, ma_max, integ_order), n_trials=n_trials)
+
+    print(f"Best parameters: {study.best_params}")
+    print(f"Best MSE: {study.best_value}")
+
+    best_order_list = list(study.best_params.keys())
+
+    return study, best_order_list
+
+
+# optuna SARIMA
+def SARIMA_objective(trial, data,
+                    ar_max=None, ma_max=None, integ_order=None,
+                    ar_s_max=None, ma_s_max=None, integ_s=None):
+
+    ar_order = trial.suggest_int('AR_order', 1, ar_max) if ar_max is not None else 0
+    ma_order = trial.suggest_int('MA_order', 1, ma_max) if ma_max is not None else 0
+    inte_order = integ_order if integ_order is not None else 0
+    ar_s_order = trial.suggest_int('AR_s_order', 1, ar_s_max) if ar_s_max is not None else 0
+    ma_s_order = trial.suggest_int('MA_s_order', 1, ma_s_max) if ma_s_max is not None else 0
+    inte_s = integ_s if integ_s is not None else 0
+
+    tscv = TimeSeriesSplit(n_splits=5)
+    mse_scores = []
+
+    for train_index, test_index in tscv.split(data):
+        train, test = data[train_index], data[test_index]
+        model = SARIMA_Model(AR_order=ar_order, MA_order=ma_order, Inte_order=inte_order,
+                             AR_s=ar_s_order, MA_s=ma_s_order, Seas_s=inte_s)
+        model.fit(train)
+        predictions = model.predict(test)
+        mse = MSE(test, predictions)
+        mse_scores.append(mse)
+
+    return np.mean(mse_scores)
+
+
+
+def optuna_search_SARIMA(data, ar_max=None, ma_max=None, integ_order=None,
+                         ar_s_max=None, ma_s_max=None, integ_s=None,
+                         objective=SARIMA_objective, n_trials=5):
+
+    study = optuna.create_study(direction='minimize')
+    study.optimize(lambda trial: objective(trial, data, ar_max, ma_max, integ_order,
+                                           ar_s_max, ma_s_max, integ_s),
+                   n_trials=n_trials)
+
+    print(f"Best parameters: {study.best_params}")
+    print(f"Best MSE: {study.best_value}")
+
+    best_order_list = list(study.best_params.keys())
+
+    return study, best_order_list
+

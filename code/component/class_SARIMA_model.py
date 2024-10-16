@@ -1,18 +1,18 @@
 from utils import *
 
-class ARModel(BaseEstimator):
+class SARIMA_Model(BaseEstimator):
     def __init__(self,
                  model_name,
-                 AR_order=1, MA_order=0, inte_order=0,
-                 AR_s=1, MA_s=0, inte_s=0, seas_s=12):
+                 AR_order=1, MA_order=0, Inte_order=0,
+                 AR_s=1, MA_s=0, Inte_s=0, Seas_s=12):
         self.model_name = model_name
         self.AR_order = AR_order
         self.MA_order = MA_order
-        self.inte_order = inte_order
+        self.inte_order = Inte_order
         self.AR_s = AR_s
         self.MA_s = MA_s
-        self.inte_s = inte_s
-        self.seas_s = seas_s
+        self.inte_s = Inte_s
+        self.seas_s = Seas_s
         self.model = None
 
 

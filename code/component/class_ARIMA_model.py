@@ -8,8 +8,8 @@ class ARIMA_model(BaseEstimator):
         self.model = None
 
     def fit(self, X, y=None):
-        self.model = ARIMA(X, order=(self.AR_order, self.Inte_order, self.MA_order)).fit(method_kwargs = {'epsilon': 1e-8,
-                                                                                                          'maxfun': 500,})
+        self.model = ARIMA(X, order=(self.AR_order, self.Inte_order, self.MA_order)).fit()
+        # self.model = ARIMA(X, order=(self.AR_order, self.Inte_order, self.MA_order)).fit(method='statespace', method_kwargs={'maxiter': 10})
         return self
 
     def predict(self, X):
@@ -18,4 +18,3 @@ class ARIMA_model(BaseEstimator):
     def forecast(self, steps):
         return self.model.forecast(steps=steps)
 
-# result = model.fit(ftol=1e-9, maxiter=200)

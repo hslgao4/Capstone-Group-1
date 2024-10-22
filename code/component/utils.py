@@ -6,6 +6,7 @@ import pandas as pd
 from statsmodels.tsa.seasonal import STL
 import numpy as np
 from statsmodels.graphics.tsaplots import plot_acf, plot_pacf
+from statsmodels.tsa.stattools import acf
 import statsmodels.api as sm
 import copy
 import seaborn as sns
@@ -19,9 +20,12 @@ from sklearn.model_selection import TimeSeriesSplit, GridSearchCV
 from prettytable import PrettyTable
 import optuna
 import sys
+
+from sympy import rotations
+
 sys.path.append('../component')
-from class_ARIMA_model import ARIMA_model
-from class_SARIMA_model import SARIMA_Model
+from class_ARIMA_model import *
+from class_SARIMA_model import *
 
 '''EDA Part function'''
 # plot rolling mean & variance
@@ -45,7 +49,7 @@ def plt_rolling_mean_var(df, item_list):
     roll_mean, roll_var = rolling_mean_var(df, item_list)
 
     # Plot the results
-    plt.figure(figsize=(8, 7))
+    fig = plt.figure()
 
     # Subplot 1: Rolling Mean
     plt.subplot(2, 1, 1)
@@ -64,7 +68,8 @@ def plt_rolling_mean_var(df, item_list):
     plt.legend()
 
     plt.tight_layout()
-    plt.show()
+    # plt.show()
+    return fig
 
 
 # ADF test
@@ -100,24 +105,26 @@ def kpss_test(timeseries):
 
 # Decomposition
 def Decomposition(df, item, date, period):
-    # df = pd.read_csv(path, parse_dates=[date])
-    df.set_index(date, inplace=True)
-    stl = STL(df[item], period=period)
+    new_df = df.copy()
+
+    new_df.set_index(date, inplace=True)
+    stl = STL(new_df[item], period=period)
     res = stl.fit()
     T = res.trend
     S = res.seasonal
     R = res.resid
     fig = res.plot()
-    plt.show()
+    plt.xticks(rotation=45)
+    # plt.show()
 
-    df["season"] = S.tolist()
-    df["trend"] = T.tolist()
+    new_df["season"] = S.tolist()
+    new_df["trend"] = T.tolist()
 
-    adjutsed_df = df[item] - df["season"] - df["trend"]
-    adjutsed_df.index = df.index
+    adjutsed_df = new_df[item] - new_df["season"] - new_df["trend"]
+    adjutsed_df.index = new_df.index
 
     plt.figure(figsize=(12, 8))
-    plt.plot(df[item], label="Original", lw=1.5)
+    plt.plot(new_df[item], label="Original", lw=1.5)
     plt.plot(adjutsed_df, label="Detrend & Season_adj", lw=1.5)
     plt.title("Original vs. Detrend & Season adjusted")
     plt.ylabel(item)
@@ -133,11 +140,13 @@ def Decomposition(df, item, date, period):
     FS = np.maximum(0, 1 - np.var(np.array(R)) / np.var(np.array(S + R)))
     print(f'The strength of seasonality for this data set is  {100*FS:.2f}%')
 
+    return fig
+
 # differencing
 def differencing(df, order, item):
     diff_list = [0] * order
     for i in range(order, len(df)):
-        diff = df.loc[i, item] - df.loc[i-order, item]
+        diff = df.iloc[i][item] - df.iloc[i-order][item]
         diff_list.append(diff)
     return diff_list
 
@@ -152,8 +161,6 @@ def rev_diff(value, forecast):
 
 # ACF, PACF
 def ACF_PACF_Plot(y,lags):
-    acf = sm.tsa.stattools.acf(y, nlags=lags)
-    pacf = sm.tsa.stattools.pacf(y, nlags=lags)
     fig = plt.figure()
     plt.subplot(2,1,1)
     plt.title('ACF/PACF of the raw data')
@@ -161,57 +168,21 @@ def ACF_PACF_Plot(y,lags):
     plt.subplot(2,1,2)
     plot_pacf(y, ax=plt.gca(), lags=lags)
     fig.tight_layout(pad=3)
-    plt.show()
+    # plt.show()
+    return fig
 
 # simple line plot
 def plot_time_series(df):
-    plt.figure(figsize=(16, 10))
+    fig = plt.figure()
     plt.plot(df[df.columns[0]], df[df.columns[1]])
     plt.xlabel('Date')
     plt.ylabel('Magnitude')
     plt.title(f'{df.columns[1]} over Date')
     plt.xticks(rotation=45)
-    plt.show()
+    # plt.show()
+    return fig
 
 
-
-# statistics table comparison
-def plot_data_statistics(data_list, names=None):
-    if names is None:
-        names = [f"Data {i + 1}" for i in range(len(data_list))]
-
-    if len(names) != len(data_list):
-        raise ValueError("The number of names must match the number of datasets.")
-
-    stats = []
-    for data in data_list:
-        stats.append([
-            f"{np.mean(data):.2f}",
-            f"{np.var(data):.2f}",
-            f"{np.std(data):.2f}",
-            f"{np.percentile(data, 25):.2f}",
-            f"{np.median(data):.2f}",
-            f"{np.percentile(data, 75):.2f}"
-        ])
-
-    fig, ax = plt.subplots(figsize=(12, len(data_list) + 2))
-    ax.axis('off')
-
-    table = ax.table(
-        cellText=stats,
-        rowLabels=names,
-        colLabels=['Mean', 'Variance', 'Std Dev', 'Q1', 'Median', 'Q3'],
-        loc='center',
-        cellLoc='center'
-    )
-
-    table.auto_set_font_size(False)
-    table.set_fontsize(10)
-    table.scale(1.2, 1.5)
-
-    plt.title("Comparison of Dataset Statistics")
-    plt.tight_layout()
-    plt.show()
 
 # ACF plot
 def plt_ACF(y, lag):
@@ -227,8 +198,8 @@ def plt_ACF(y, lag):
         R.append(r)
     R_inv = R[::-1]
     Magnitute = R_inv + R[1:]
-    # ACF = plt.figure()
-    plt.figure()
+
+    fig = plt.figure()
     x_values = range(-lag, lag + 1)
     (markers, stemlines, baseline) = plt.stem(x_values, Magnitute, markerfmt='o')
     plt.setp(markers, color = 'red')
@@ -237,8 +208,8 @@ def plt_ACF(y, lag):
     plt.xlabel('Lags')
     plt.ylabel('Magnitute')
     plt.title(f'ACF plot' )
-    plt.show()
-    # return ACF
+    # plt.show()
+    return fig
 
 def cal_ACF(y, lag):
     mean = np.mean(y)
@@ -287,7 +258,8 @@ def cal_fi(j, k, ACF):
     return fi
 
 def GPAC_table(y, J=7, K=7):
-    ACF = cal_ACF(y, J+K+1)
+    # ACF = cal_ACF(y, J+K+1)
+    ACF = acf(y, nlags=J + K + 1)
     temp = np.zeros((J, K - 1))
     for k in range(1, K):
         for j in range(J):
@@ -296,7 +268,7 @@ def GPAC_table(y, J=7, K=7):
     table = pd.DataFrame(temp)
     table = table.round(2)
     table.columns = range(1, K)
-    plt.figure()
+    plt.figure(figsize=(12, 10))
     sns.heatmap(table, annot=True)
     plt.title("Generalized Partial Autocorrelation(GPAC) Table")
     plt.show()
@@ -317,27 +289,29 @@ def MAE(y_true, y_pred):
 
 # plot
 def plt_forecast(df_test, rev_forecast):
-    plt.figure(figsize=(16, 10))
+    fig = plt.figure()
     plt.plot(df_test.index, df_test.iloc[:, 0], label='Test Data', color='red')
     plt.plot(df_test.index, rev_forecast, label='Forecast', color='green')
     plt.xlabel('Index')
     plt.ylabel('Magnitude')
     plt.legend()
     plt.title('Test, and Predicted Values')
-    plt.show()
+    # plt.show()
+    return fig
 
 def plt_prediction(df_train, rev_pred):
-    plt.figure(figsize=(12, 6))
+    fig = plt.figure()
     plt.plot(df_train.index, df_train.iloc[:, 0], label='Train')
     plt.plot(df_train.index, rev_pred, label='Prediction')
     plt.xlabel('Index')
     plt.ylabel('Magnitude')
     plt.legend()
     plt.title('Train vs Predicted values')
-    plt.show()
+    # plt.show()
+    return fig
 
 def plt_train_test_forecast(df_train, df_test, rev_forecast):
-    plt.figure(figsize=(12, 6))
+    fig = plt.figure()
     plt.plot(df_train.index, df_train.iloc[:, 0], label='Train', color='blue')
     plt.plot(df_test.index, df_test.iloc[:, 0], label='Test', color='red')
     plt.plot(df_test.index, rev_forecast, label='Forecast', color='green')
@@ -345,7 +319,8 @@ def plt_train_test_forecast(df_train, df_test, rev_forecast):
     plt.ylabel('Magnitude')
     plt.title('Train vs Test vs Forecast')
     plt.legend()
-    plt.show()
+    # plt.show()
+    return fig
 
 def tabel_pretty(df,title):
     x = PrettyTable()
@@ -385,8 +360,8 @@ def grid_sklearn(data, param_grid, model, n_splits=5):
 def ARIMA_objective(trial, data,
                     ar_max=None, ma_max=None, integ_order=None):
 
-    ar_order = trial.suggest_int('AR_order', 1, ar_max) if ar_max is not None else 0
-    ma_order = trial.suggest_int('MA_order', 1, ma_max) if ma_max is not None else 0
+    ar_order = trial.suggest_int('AR_order', 0, ar_max) if ar_max is not None else 0
+    ma_order = trial.suggest_int('MA_order', 0, ma_max) if ma_max is not None else 0
     inte_order = integ_order if integ_order is not None else 0
 
     tscv = TimeSeriesSplit(n_splits=5)
@@ -462,3 +437,169 @@ def optuna_search_SARIMA(data, ar_max=None, ma_max=None, integ_order=None,
 
     return study, best_order_list
 
+
+def cus_grid_search_ar(data, test, validation, min_order, max_order):
+    mse_test = []
+    mse_val = []
+    final_order = min_order
+    best_mse_test = float('inf')
+    best_mse_val = float('inf')
+
+    for order in range(min_order, max_order + 1):
+        model_ar = ARIMA_model(AR_order=order)
+        model_ar.fit(data)
+
+        forecast_test = model_ar.forecast(steps=len(test))
+        current_mse_test = round(MSE(test, forecast_test), 4)
+        mse_test.append((order, current_mse_test))
+
+        forecast_val = model_ar.forecast(steps=len(validation))
+        current_mse_val = round(MSE(forecast_val, validation), 4)
+        mse_val.append((order, current_mse_val))
+
+        if current_mse_test < best_mse_test and current_mse_val < best_mse_val:
+            best_mse_test = current_mse_test
+            best_mse_val = best_mse_val
+            final_order = order
+
+    return final_order, mse_test, mse_val
+
+def cus_grid_search_ma(data, test, validation, min_order, max_order):
+    mse_test = []
+    mse_val = []
+    final_order = min_order
+    best_mse_test = float('inf')
+    best_mse_val = float('inf')
+
+    for order in range(min_order, max_order + 1):
+        model_ar = ARIMA_model(AR_order=0, MA_order=order)
+        model_ar.fit(data)
+
+        forecast_test = model_ar.forecast(steps=len(test))
+        current_mse_test = MSE(test, forecast_test)
+        mse_test.append((order, current_mse_test))
+
+        forecast_val = model_ar.forecast(steps=len(validation))
+        current_mse_val = MSE(forecast_val, validation)
+        mse_val.append((order, current_mse_val))
+
+        if current_mse_test < best_mse_test and current_mse_val < best_mse_val:
+            best_mse_test = current_mse_test
+            best_mse_val = best_mse_val
+            final_order = order
+
+    return final_order, mse_test, mse_val
+
+
+def cal_err(y_pred, Y_test):
+    error = []
+    error_se = []
+    for i in range(len(y_pred)):
+        e = Y_test[i] - y_pred[i]
+        error.append(e)
+        error_se.append(e**2)
+    # error_mean = np.mean(error)
+    # error_var = np.var(error)
+    error_mse = np.mean(error_se)
+    return error, error_mse
+
+
+
+# def figure_table(df, title):
+#     n_rows = df.shape[0]
+#     n_cols = df.shape[1]
+#
+#     fig, axs = plt.subplots(n_rows, n_cols, figsize=(n_cols * 3, n_rows * 4))  # Adjust size as needed
+#     fig.suptitle(title, fontsize=16, fontweight='bold', x=0.6)
+#
+#     # Loop through the DataFrame to plot each figure and display dataset names
+#     for row in range(n_rows):
+#         for col in range(n_cols):
+#             axs[row, col].axis('off')
+#
+#             if col == 0:
+#                 axs[row, col].text(0.5, 0.5, df.iloc[row, col], fontsize=14, fontweight='bold', va='center', ha='center',
+#                                    transform=axs[row, col].transAxes)
+#             else:
+#                 # Set column titles for figure plots
+#                 if row == 0:
+#                     axs[row, col].set_title(df.columns[col], fontsize=12, fontweight='bold')
+#
+#                 axs[row, col].imshow(df.iloc[row, col].canvas.buffer_rgba())
+#                 axs[row, col].set_xticks([])
+#                 axs[row, col].set_yticks([])
+#
+#     plt.tight_layout(rect=[0, 0.03, 1, 0.95])
+#     # plt.subplots_adjust(hspace=0.001)
+#     plt.show()
+
+# single data model performance
+def figure_table(df, title):
+    n_rows = df.shape[0]
+    n_cols = df.shape[1]
+
+    fig, axs = plt.subplots(n_rows, n_cols, figsize=(n_cols * 3, n_rows * 4))
+    fig.suptitle(title, fontsize=16, fontweight='bold', x=0.6)
+
+    for row in range(n_rows):
+        for col in range(n_cols):
+            axs[row, col].axis('off')
+
+            if col == 0:
+                axs[row, col].text(0.5, 0.5, df.iloc[row, col], fontsize=14, fontweight='bold', va='center',
+                                   ha='center',
+                                   transform=axs[row, col].transAxes)
+            else:
+                if row == 0:
+                    axs[row, col].set_title(df.columns[col], fontsize=12, fontweight='bold')
+
+                fig_to_display = df.iloc[row, col]
+                fig_to_display.canvas.draw()
+
+                axs[row, col].imshow(fig_to_display.canvas.buffer_rgba())
+                axs[row, col].set_xticks([])
+                axs[row, col].set_yticks([])
+
+    plt.tight_layout(rect=[0, 0.03, 1, 0.95])
+    plt.show()
+
+def prepare_data(path, target):
+    df = pd.read_csv(path, parse_dates=['date'])
+
+    df_train, df_temp = train_test_split(df, test_size=0.3, shuffle=False)
+    df_test, df_val = train_test_split(df_temp, test_size=0.5, shuffle=False)
+
+    df_train['date'] = pd.to_datetime(df_train['date'])
+    df_train.set_index('date', inplace=True)
+
+    df_test['date'] = pd.to_datetime(df_test['date'])
+    df_test.set_index('date', inplace=True)
+
+    train = df_train[target].values.reshape(-1, 1)
+    print('train data shape:', train.shape)
+
+    test = df_test[target].values.reshape(-1, 1)
+    validation = df_val[target].values.reshape(-1, 1)
+
+    return df_train, df_test, df_val, train, test, validation
+
+
+def ARIMA_results(ar_order, ma_order, inte_order, df_train, df_test, train, test, validation):
+    arma = ARIMA_model(AR_order=ar_order, MA_order=ma_order, Inte_order=inte_order)
+    arma.fit(train)
+
+    prediction = arma.predict(train)
+    forecast_test = arma.forecast(len(test))
+    forecast_val = arma.forecast(len(validation))
+
+    train_err, train_err_mse = cal_err(prediction.tolist(), train[:, 0].tolist())
+    test_err, test_err_mse = cal_err(forecast_test.tolist(), test[:, 0].tolist())
+    val_err, val_err_mse = cal_err(forecast_val.tolist(), validation[:, 0].tolist())
+
+    train_plt_1 = plt_prediction(df_train[:100], prediction[:100])
+    test_plt_1 = plt_forecast(df_test, forecast_test)
+
+    print('prediction error MSE:', train_err_mse)
+    print('test error MSE:', test_err_mse)
+    print('validation error MSE:', val_err_mse)
+    return train_err, test_err, train_err_mse, test_err_mse, train_plt_1, test_plt_1

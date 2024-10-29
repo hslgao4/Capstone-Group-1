@@ -1,7 +1,5 @@
 import sys
-
 import pandas as pd
-
 sys.path.append('../component')  # Ensure sys is imported before using it
 from utils import *
 from class_ARIMA_model import ARIMA_model
@@ -13,7 +11,7 @@ os.getcwd()
 path = '../data/weather.csv'
 target = 'temperature'
 df_train, df_test, df_val, train, test, validation = prepare_data(path, target)
-
+#%%
 '''AR model'''
 # based on ACF/PACF shows a clear AR pattern with order 1 or 2, AR(2) has low MSE
 ar_train_err_1, ar_test_err_1, ar_train_err_mse_1, ar_test_err_mse_1, ar_train_plt_1, ar_test_plt_1 = ARIMA_results(2, 0, 0, df_train, df_test, train, test, validation)
@@ -62,34 +60,13 @@ figure_table(weather, 'Model performance comparison')
 
 
 
-
-'''Metric table'''
-metric_table = pd.DataFrame({'Dataset': ['Temperature', 'Air Pollution', 'Power Consumption', 'Traffic Volume'],
-                             'AR model': [ar_test_err_mse_1, ar_test_err_mse_1, ar_test_err_mse_1, ar_test_err_mse_1],
-                             'MA model': [ma_test_err_mse, ma_test_err_mse, ma_test_err_mse, ma_test_err_mse ],
-                             'ARMA model': [arma_test_err_mse_1, arma_test_err_mse_1, arma_test_err_mse_1, arma_test_err_mse_1 ],
-                             'ARIMA model': [arima_test_err_mse_2, arima_test_err_mse_2, arima_test_err_mse_2, arima_test_err_mse_2 ]})
-
-def plot_metric_table(df, title):
-    fig, ax = plt.subplots(figsize=(8, 2))
-    ax.xaxis.set_visible(False)
-    ax.yaxis.set_visible(False)
-    ax.set_frame_on(False)
-    table = ax.table(cellText=df.values, colLabels=df.columns, cellLoc='center', loc='center')
-    table.set_fontsize(12)
-    table.scale(1.2, 1.2)
-    fig.suptitle(title, fontsize=12, fontweight='bold')
-    plt.show()
-
-plot_metric_table(metric_table, title='MSE Metric Table')
-
-
 # Optuna vs domain knowledge
 df_grid_search = pd.DataFrame({'Models': ['AR', 'MA', 'ARMA', 'ARIMA'],
                                'Optuna': [4, 10, (6,6), (6,1,0)],
-                               'MSE': [ar_test_err_mse_2, ma_test_err_mse, arma_test_err_mse_2, arima_test_err_mse_2],
+                               'MSE_1': [ar_test_err_mse_2, ma_test_err_mse, arma_test_err_mse_2, arima_test_err_mse_2],
                                'GPAC & ACF/PACF': [2, 'N/A', (2,3), (2,1,3)],
-                               'MSE': [ar_test_err_mse_1, 'N/A', arma_test_err_mse_1, arima_test_err_mse_1]})
+                               'MSE_2': [ar_test_err_mse_1, 'N/A', arma_test_err_mse_1, arima_test_err_mse_1]})
+
 
 plot_metric_table(df_grid_search, 'Optuna vs. Domain knowledge')
 

@@ -19,25 +19,20 @@
 * [&check;] Word document - characteristics of data
 * [ ] Model class(1. AR, MA...; 2. LSTM, GRU; 3. Transfomer;  4. Seq2Seq, optional)
 * [ ] Metric class: table to compare RMSE, MSE...
-* [ ] Metric graph: compare prediction vs. actual for models, by dataset
+* [&check; ] Metric graph: compare prediction vs. actual for models, by dataset
 * [&check;] Literature Review: what dataset other used; data's characteristics; any preprocessing; model selection; solve what problem
-* [ ] Populate the literature review results and any fingdings in the full report 
+* [&check;] Populate the literature review results and any fingdings in the full report 
 ---
-### Date: Oct 2 2024 
+### Date: Oct 22 2024 
 - Topics of discussion
 
 
-|checked|unchecked|crossed|
-|---|---|---|
-|&check;|_|&cross;|
-|&#x2611;|&#x2610;|&#x2612;|
-
 - Action Items:
-* [ ] Action Item 1
-* [ ] Action Item 2
-* [ ] Action Item 3
-* [ ] Action Item 4
-* [ ] Action Item 5
+* [&check; ] Organize the repo structure
+* [ ] Use previous prediction as the input to forecast next step
+* [ ] Shorten the horizen of prediction 
+* [ ] Finish the LSTM code
+
 ---
 ### Date: sep 24 2024 
 - Topics of discussion

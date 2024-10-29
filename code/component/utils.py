@@ -20,12 +20,15 @@ from sklearn.model_selection import TimeSeriesSplit, GridSearchCV
 from prettytable import PrettyTable
 import optuna
 import sys
+import torch
+import torch.nn as nn
+from sklearn.preprocessing import MinMaxScaler
 
 from sympy import rotations
 
 sys.path.append('../component')
-from class_ARIMA_model import *
-from class_SARIMA_model import *
+from class_ARIMA import *
+from class_SARIMA import *
 
 '''EDA Part function'''
 # plot rolling mean & variance
@@ -438,12 +441,12 @@ def optuna_search_SARIMA(data, ar_max=None, ma_max=None, integ_order=None,
     return study, best_order_list
 
 
-def cus_grid_search_ar(data, test, validation, min_order, max_order):
+def cus_grid_search_ar(data, test, min_order, max_order):
     mse_test = []
-    mse_val = []
+
     final_order = min_order
     best_mse_test = float('inf')
-    best_mse_val = float('inf')
+
 
     for order in range(min_order, max_order + 1):
         model_ar = ARIMA_model(AR_order=order)
@@ -453,23 +456,18 @@ def cus_grid_search_ar(data, test, validation, min_order, max_order):
         current_mse_test = round(MSE(test, forecast_test), 4)
         mse_test.append((order, current_mse_test))
 
-        forecast_val = model_ar.forecast(steps=len(validation))
-        current_mse_val = round(MSE(forecast_val, validation), 4)
-        mse_val.append((order, current_mse_val))
 
-        if current_mse_test < best_mse_test and current_mse_val < best_mse_val:
+        if current_mse_test < best_mse_test :
             best_mse_test = current_mse_test
-            best_mse_val = best_mse_val
             final_order = order
 
-    return final_order, mse_test, mse_val
+    return final_order, mse_test
 
-def cus_grid_search_ma(data, test, validation, min_order, max_order):
+def cus_grid_search_ma(data, test, min_order, max_order):
     mse_test = []
-    mse_val = []
     final_order = min_order
     best_mse_test = float('inf')
-    best_mse_val = float('inf')
+
 
     for order in range(min_order, max_order + 1):
         model_ar = ARIMA_model(AR_order=0, MA_order=order)
@@ -479,16 +477,12 @@ def cus_grid_search_ma(data, test, validation, min_order, max_order):
         current_mse_test = MSE(test, forecast_test)
         mse_test.append((order, current_mse_test))
 
-        forecast_val = model_ar.forecast(steps=len(validation))
-        current_mse_val = MSE(forecast_val, validation)
-        mse_val.append((order, current_mse_val))
 
-        if current_mse_test < best_mse_test and current_mse_val < best_mse_val:
+        if current_mse_test < best_mse_test:
             best_mse_test = current_mse_test
-            best_mse_val = best_mse_val
             final_order = order
 
-    return final_order, mse_test, mse_val
+    return final_order, mse_test
 
 
 def cal_err(y_pred, Y_test):
@@ -562,6 +556,7 @@ def figure_table(df, title):
 
     plt.tight_layout(rect=[0, 0.03, 1, 0.95])
     plt.show()
+    return fig
 
 def prepare_data(path, target):
     df = pd.read_csv(path, parse_dates=['date'])
@@ -603,3 +598,53 @@ def ARIMA_results(ar_order, ma_order, inte_order, df_train, df_test, train, test
     print('test error MSE:', test_err_mse)
     print('validation error MSE:', val_err_mse)
     return train_err, test_err, train_err_mse, test_err_mse, train_plt_1, test_plt_1
+
+
+def plot_metric_table(df, title):
+    fig, ax = plt.subplots(figsize=(8, 2))
+    ax.xaxis.set_visible(False)
+    ax.yaxis.set_visible(False)
+    ax.set_frame_on(False)
+    table = ax.table(cellText=df.values, colLabels=df.columns, cellLoc='center', loc='center')
+    table.set_fontsize(12)
+    table.scale(1.2, 1.2)
+    fig.suptitle(title, fontsize=12, fontweight='bold')
+    plt.show()
+
+
+# LSTM
+def sliding_windows(data, seq_length):
+    x, y = [], []
+    for i in range(len(data) - seq_length - 1):
+        _x = data[i:(i + seq_length)]
+        _y = data[i + seq_length]
+        x.append(_x)
+        y.append(_y)
+    return np.array(x), np.array(y)
+
+
+# prepare data for LSTM
+def pre_lstm_data(path, seq_length):
+    device = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
+    training_set = pd.read_csv(path)
+    training_set = training_set.iloc[:, 1:2].values
+
+    sc = MinMaxScaler()
+    training_data = sc.fit_transform(training_set)
+    seq_length = seq_length
+    print('seq_length:', seq_length)
+    x, y = sliding_windows(training_data, seq_length)
+
+    train_size = int(len(y) * 0.7)
+    val_size = int(len(y) * 0.15)
+
+    trainX = torch.Tensor(x[:train_size]).to(device)
+    trainY = torch.Tensor(y[:train_size]).to(device)
+
+    valX = torch.Tensor(x[train_size:train_size + val_size]).to(device)
+    valY = torch.Tensor(y[train_size:train_size + val_size]).to(device)
+
+    testX = torch.Tensor(x[train_size + val_size:]).to(device)
+    testY = torch.Tensor(y[train_size + val_size:]).to(device)
+
+    return trainX, trainY, valX, valY, testX, testY

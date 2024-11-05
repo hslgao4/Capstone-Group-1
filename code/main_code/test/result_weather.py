@@ -1,8 +1,6 @@
 import sys
 import pandas as pd
-from scipy.special.tests.test_boost_ufuncs import test_data
-
-sys.path.append('../component')  # Ensure sys is imported before using it
+sys.path.append('../../component')
 from utils import *
 from class_LSTM import LSTM
 import os
@@ -71,20 +69,22 @@ trainY = torch.Tensor(y[:train_size]).to(device)
 testX = torch.Tensor(x[train_size:]).to(device)
 testY = torch.Tensor(y[train_size:]).to(device)
 
+
 input_size = 1
 hidden_size = 2
 num_layers = 1
-num_classes = 1
+output_size = 1
 
 device = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
-lstm = LSTM(num_classes, input_size, hidden_size, num_layers).to(device)
-criterion = nn.MSELoss()
+
+lstm = LSTM(input_size, hidden_size, num_layers, output_size).to(device)
 lstm.load_state_dict(torch.load('LSTM_model_weights.pt'))
 
+criterion = nn.MSELoss()
 lstm.eval()
 with torch.no_grad():
     train_predict = lstm(trainX)
-    test_predict = lstm(test_data)
+    test_predict = lstm(testX)
 
 lstm_train_loss = criterion(train_predict, trainY)
 lstm_test_loss = criterion(test_predict, testY)
@@ -99,7 +99,17 @@ train_actual = trainY.cpu().numpy()
 train_pred = sc.inverse_transform(train_pred)
 train_actual = sc.inverse_transform(train_actual)
 
-lstm_train_plt = plt_forecast(train_actual, train_pred)
+
+training_set = pd.read_csv(path)
+training_set.set_index('date')
+
+train_data = training_set.iloc[:train_size]
+test_data = training_set.iloc[train_size:]
+
+train_true = pd.Series(train_actual[:,0], index=train_data.index)
+train_pred = pd.Series(train_pred[:,0], index=train_data.index)
+
+lstm_train_plt = plt_forecast(train_true, train_pred)
 lstm_test_plt = plt_forecast(test_actual, test_pred)
 
 

@@ -2,124 +2,149 @@ import sys
 import pandas as pd
 sys.path.append('../../component')
 from utils import *
-from class_LSTM import LSTM
+from class_LSTM import LSTM, BiLSTM, Seq2SeqLSTM
 import os
 os.getcwd()
 
-# prepare the data for the model
-path = '../data/weather.csv'
+path = '../../data/weather.csv'
+
+"""Classical Time Series Model"""
 target = 'temperature'
-df_train, df_test, df_val, train, test, validation = prepare_data(path, target)
-#%%
+df_train, df_test, df_val, train, test, validation = prepare_arima_data(path, target)
+
 '''AR model'''
-# based on ACF/PACF shows a clear AR pattern with order 1 or 2, AR(2) has low MSE
+#%% Domain knowledge
 ar_train_err_1, ar_test_err_1, ar_train_err_mse_1, ar_test_err_mse_1, ar_train_plt_1, ar_test_plt_1 = ARIMA_results(2, 0, 0, df_train, df_test, train, test, validation)
 
-# optuna give order AR(4)
+#%% Optuna
 ar_train_err_2, ar_test_err_2, ar_train_err_mse_2, ar_test_err_mse_2, ar_train_plt_2, ar_test_plt_2 = ARIMA_results(4, 0, 0, df_train, df_test, train, test, validation)
 
 ar_train_err_acf = plt_ACF(ar_train_err_2, 40)
 ar_test_err_acf = plt_ACF(ar_test_err_2, 40)
 
 '''MA model'''
-# no MA pattern in ACF/PACF, so just use optuna MA(10)
+#%% No MA pattern in ACF/PACF, so just use Optuna MA(10)
 ma_train_err, ma_test_err, ma_train_err_mse, ma_test_err_mse, ma_train_plt_1, ma_test_plt_1 = ARIMA_results(10, 0, 0, df_train, df_test, train, test, validation)
 
 ma_train_err_acf = plt_ACF(ma_train_err, 40)
 ma_test_err_acf = plt_ACF(ma_test_err, 40)
 
 '''ARMA model'''
-# GPAC: ARMA(2,3)
+#%% GPAC: ARMA(2,3)
 arma_train_err_1, arma_test_err_1, arma_train_err_mse_1, arma_test_err_mse_1, arma_train_plt_1, arma_test_plt_1 = ARIMA_results(2, 3, 0, df_train, df_test, train, test, validation)
 
-# Optuna(6,6)
+# Optuna(12,11)
 arma_train_err_2, arma_test_err_2, arma_train_err_mse_2, arma_test_err_mse_2, arma_train_plt_2, arma_test_plt_2 = ARIMA_results(6, 6, 0, df_train, df_test, train, test, validation)
 
 arma_train_err_acf = plt_ACF(arma_train_err_2, 40)
 arma_test_err_acf = plt_ACF(arma_test_err_2, 40)
 
 '''ARIMA model'''
-# GPAC ARIMA(2,1,3)
+#%% GPAC ARIMA(2,1,3)
 arima_train_err_1, arima_test_err_1, arima_train_err_mse_1, arima_test_err_mse_1, arima_train_plt_1, arima_test_plt_1 = ARIMA_results(2, 3, 1, df_train, df_test, train, test, validation)
 
-# Optuna ARIMA(6, 1, 0)
+#%% Optuna ARIMA(6, 1, 0)
 arima_train_err_2, arima_test_err_2, arima_train_err_mse_2, arima_test_err_mse_2, arima_train_plt_2, arima_test_plt_2 = ARIMA_results(6, 0, 1, df_train, df_test, train, test, validation)
 
 arima_train_err_acf = plt_ACF(arima_train_err_2, 40)
 arima_test_err_acf = plt_ACF(arima_test_err_2, 40)
 
-'''LSTM'''
-path = '../../data/weather.csv'
 
+
+
+
+
+"""LSTM, BiLSTM, Seq2seq"""
 device = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
-training_set = pd.read_csv(path)
-training_set = training_set.iloc[:, 1:2].values
 
-sc = MinMaxScaler()
-training_data = sc.fit_transform(training_set)
+'''LSTM'''
+#%%
 seq_length = 30
-print('seq_length:', seq_length)
-x, y = sliding_windows(training_data, seq_length)
+X_train, y_train, X_test, y_test, scaler = pre_lstm_data(path, 'temperature', seq_length)
 
-train_size = int(len(y) * 0.8)
-
-trainX = torch.Tensor(x[:train_size]).to(device)
-trainY = torch.Tensor(y[:train_size]).to(device)
-
-testX = torch.Tensor(x[train_size:]).to(device)
-testY = torch.Tensor(y[train_size:]).to(device)
-
-
+batch_size = 128 * 20
 input_size = 1
 hidden_size = 2
 num_layers = 1
 output_size = 1
 
-device = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
+train_dataset = TensorDataset(X_train, y_train)
+test_dataset = TensorDataset(X_test, y_test)
+train_loader = DataLoader(dataset=train_dataset, batch_size=batch_size, shuffle=False, num_workers=6)
+test_loader = DataLoader(dataset=test_dataset, batch_size=batch_size, shuffle=False, num_workers=6)
 
 lstm = LSTM(input_size, hidden_size, num_layers, output_size).to(device)
+criterion = nn.MSELoss()
 lstm.load_state_dict(torch.load('LSTM_model_weights.pt'))
 
+train_prediction, lstm_pred_mse = lstm_loop(lstm, train_loader, device, criterion)
+test_forecast, lstm_fore_mse = lstm_loop(lstm, test_loader, device, criterion)
+
+lstm_train_pred = scaler.inverse_transform(torch.cat(train_prediction).numpy())
+lstm_test_fore = scaler.inverse_transform(torch.cat(test_forecast).numpy())
+
+y_train = scaler.inverse_transform(y_train.cpu().numpy())
+y_test = scaler.inverse_transform(y_test.cpu().numpy())
+
+
+
+'''BiLSTM'''
+#%%
+seq_length = 2
+X_train, y_train, X_test, y_test, scaler = pre_lstm_data(path, 'temperature', seq_length)
+
+batch_size = 128 * 20
+input_size = 1
+hidden_size = 64 * 2
+num_layers = 2 + 1
+output_size = 1
+
+train_dataset = TensorDataset(X_train, y_train)
+test_dataset = TensorDataset(X_test, y_test)
+train_loader = DataLoader(dataset=train_dataset, batch_size=batch_size, shuffle=False, num_workers=6)
+test_loader = DataLoader(dataset=test_dataset, batch_size=batch_size, shuffle=False, num_workers=6)
+
+Bilstm = BiLSTM(input_size, hidden_size, num_layers, output_size).to(device)
 criterion = nn.MSELoss()
-lstm.eval()
-with torch.no_grad():
-    train_predict = lstm(trainX)
-    test_predict = lstm(testX)
+Bilstm.load_state_dict(torch.load('BiLSTM_model_weights.pt'))
 
-lstm_train_loss = criterion(train_predict, trainY)
-lstm_test_loss = criterion(test_predict, testY)
+train_prediction, Bilstm_pred_mse = lstm_loop(Bilstm, train_loader, device, criterion)
+test_forecast, Bilstm_fore_mse = lstm_loop(Bilstm, test_loader, device, criterion)
 
-test_pred = test_predict.cpu().numpy()
-test_actual = testY.cpu().numpy()
-test_pred = sc.inverse_transform(test_pred)
-test_actual = sc.inverse_transform(test_actual)
-
-train_pred = train_predict.cpu().numpy()
-train_actual = trainY.cpu().numpy()
-train_pred = sc.inverse_transform(train_pred)
-train_actual = sc.inverse_transform(train_actual)
+Bilstm_train_pred = scaler.inverse_transform(torch.cat(train_prediction).numpy())
+Bilstm_test_fore = scaler.inverse_transform(torch.cat(test_forecast).numpy())
 
 
-training_set = pd.read_csv(path)
-training_set.set_index('date')
+'''Seq2seq'''
+#%%
+seq_length = 5
+X_train, y_train, X_test, y_test, scaler = pre_lstm_data(path, 'temperature', seq_length)
 
-train_data = training_set.iloc[:train_size]
-test_data = training_set.iloc[train_size:]
+batch_size = 64 * 2
+input_size = 1
+hidden_size = 64
+output_size = 1
+num_layers = 2
 
-train_true = pd.Series(train_actual[:,0], index=train_data.index)
-train_pred = pd.Series(train_pred[:,0], index=train_data.index)
+train_dataset = TensorDataset(X_train, y_train)
+test_dataset = TensorDataset(X_test, y_test)
+train_loader = DataLoader(dataset=train_dataset, batch_size=batch_size, shuffle=False, num_workers=6)
+test_loader = DataLoader(dataset=test_dataset, batch_size=batch_size, shuffle=False, num_workers=6)
 
-lstm_train_plt = plt_forecast(train_true, train_pred)
-lstm_test_plt = plt_forecast(test_actual, test_pred)
+seg2seq = Seq2SeqLSTM(input_size, hidden_size, output_size, num_layers).to(device)
+criterion = nn.MSELoss()
+seg2seq.load_state_dict(torch.load('seq2seq_model_weights.pt'))
 
+train_prediction, seq2seq_pred_mse = lstm_loop(seg2seq, train_loader, device, criterion)
+test_forecast, seq2seq_fore_mse = lstm_loop(seg2seq, test_loader, device, criterion)
 
-
-
-
+seq2seq_train_pred = scaler.inverse_transform(torch.cat(train_prediction).numpy())
+seq2seq_test_fore = scaler.inverse_transform(torch.cat(test_forecast).numpy())
 
 
 
 '''Single dataset model performance'''
+#%%
 weather = pd.DataFrame({'Models': ['AR', 'MA', 'ARMA', 'ARIMA'],
                         'Train prediction': [ar_train_plt_2, ma_train_plt_1, arma_train_plt_2, arima_train_plt_2],
                         'Train error ACF': [ar_train_err_acf, ma_train_err_acf, arma_train_err_acf, arima_train_err_acf],

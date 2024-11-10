@@ -23,11 +23,11 @@ import sys
 import torch
 import torch.nn as nn
 from sklearn.preprocessing import MinMaxScaler
-
+from torch.utils.data import DataLoader, TensorDataset
 from sympy import rotations
 
 sys.path.append('../component')
-from class_ARIMA import *
+from class_TS_model_classical import *
 from class_SARIMA import *
 
 '''EDA Part function'''
@@ -359,34 +359,27 @@ def grid_sklearn(data, param_grid, model, n_splits=5):
     return best_order
 
 
-# optuna for ARIMA
-def ARIMA_objective(trial, data,
+
+def ARIMA_objective(trial, train, test,
                     ar_max=None, ma_max=None, integ_order=None):
 
-    ar_order = trial.suggest_int('AR_order', 0, ar_max) if ar_max is not None else 0
-    ma_order = trial.suggest_int('MA_order', 0, ma_max) if ma_max is not None else 0
+    ar_order = trial.suggest_int('AR_order', 1, ar_max) if ar_max is not None else 0
+    ma_order = trial.suggest_int('MA_order', 1, ma_max) if ma_max is not None else 0
     inte_order = integ_order if integ_order is not None else 0
 
-    tscv = TimeSeriesSplit(n_splits=5)
-    mse_scores = []
+    model = ARIMA_model(AR_order=ar_order, MA_order=ma_order, Inte_order=inte_order)
+    model.fit(train)
+    forecast = model.forecast(len(test))
+    mse = MSE(test, forecast)
 
-    for train_index, test_index in tscv.split(data):
-        train, test = data[train_index], data[test_index]
-        model = ARIMA_model(AR_order=ar_order, MA_order=ma_order, Inte_order=inte_order)
-        model.fit(train)
-        predictions = model.predict(test)
-        mse = MSE(test, predictions)
-        mse_scores.append(mse)
+    return mse
 
-    return np.mean(mse_scores)
-
-
-def optuna_search_ARIMA(data,
+def optuna_search_ARIMA(train, test,
                         ar_max=None, ma_max=None, integ_order=None,
                         objective=ARIMA_objective, n_trials=5):
 
     study = optuna.create_study(direction='minimize')
-    study.optimize(lambda trial: objective(trial, data, ar_max, ma_max, integ_order), n_trials=n_trials)
+    study.optimize(lambda trial: objective(trial, train, test, ar_max, ma_max, integ_order), n_trials=n_trials)
 
     print(f"Best parameters: {study.best_params}")
     print(f"Best MSE: {study.best_value}")
@@ -558,7 +551,7 @@ def figure_table(df, title):
     plt.show()
     return fig
 
-def prepare_data(path, target):
+def prepare_arima_data(path, target):
     df = pd.read_csv(path, parse_dates=['date'])
 
     df_train, df_temp = train_test_split(df, test_size=0.3, shuffle=False)
@@ -624,27 +617,42 @@ def sliding_windows(data, seq_length):
 
 
 # prepare data for LSTM
-def pre_lstm_data(path, seq_length):
-    device = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
+def pre_lstm_data(path, column, seq_length):
     training_set = pd.read_csv(path)
-    training_set = training_set.iloc[:, 1:2].values
 
-    sc = MinMaxScaler()
-    training_data = sc.fit_transform(training_set)
-    seq_length = seq_length
+    data = training_set[column].values.astype(float)
+    scaler = MinMaxScaler(feature_range=(-1, 1))
+    data = scaler.fit_transform(data.reshape(-1, 1))
+
     print('seq_length:', seq_length)
-    x, y = sliding_windows(training_data, seq_length)
 
-    train_size = int(len(y) * 0.7)
-    val_size = int(len(y) * 0.15)
+    X, y = sliding_windows(data, seq_length)
 
-    trainX = torch.Tensor(x[:train_size]).to(device)
-    trainY = torch.Tensor(y[:train_size]).to(device)
+    # Split into train/test sets
+    train_size = int(len(X) * 0.8)
+    X_train, y_train = X[:train_size], y[:train_size]
+    X_test, y_test = X[train_size:], y[train_size:]
 
-    valX = torch.Tensor(x[train_size:train_size + val_size]).to(device)
-    valY = torch.Tensor(y[train_size:train_size + val_size]).to(device)
+    # Convert to PyTorch tensors
+    X_train = torch.FloatTensor(X_train)
+    y_train = torch.FloatTensor(y_train)
+    X_test = torch.FloatTensor(X_test)
+    y_test = torch.FloatTensor(y_test)
 
-    testX = torch.Tensor(x[train_size + val_size:]).to(device)
-    testY = torch.Tensor(y[train_size + val_size:]).to(device)
+    return X_train, y_train, X_test, y_test, scaler
 
-    return trainX, trainY, valX, valY, testX, testY
+def lstm_loop(lstm, data_loader, device, criterion):
+    lstm.eval()
+    with torch.no_grad():
+        total_loss = 0
+        predictions = []
+        for X_batch, y_batch in data_loader:
+            X_batch, y_batch = X_batch.to(device), y_batch.to(device)
+            outputs = lstm(X_batch)
+            loss = criterion(outputs, y_batch)
+            total_loss += loss.item()
+            predictions.append(outputs.cpu())
+
+    print('loss:', total_loss / len(data_loader))
+
+    return predictions, total_loss / len(data_loader)

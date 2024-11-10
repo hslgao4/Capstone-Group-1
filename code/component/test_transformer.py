@@ -1,3 +1,5 @@
+import pdb
+
 import pandas as pd
 import torch
 from torch.utils.data import Dataset, DataLoader
@@ -5,6 +7,7 @@ from sklearn.preprocessing import MinMaxScaler
 from transformers import TimeSeriesTransformerForPrediction, TimeSeriesTransformerConfig
 import joblib
 
+torch.cuda.set_device(0)
 device = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
 
 # Load the data
@@ -77,7 +80,7 @@ class TimeSeriesDataset(Dataset):
 
 
 # Create Datasets and DataLoaders
-batch_size = 64
+batch_size = 4
 train_dataset = TimeSeriesDataset(train_samples)
 test_dataset = TimeSeriesDataset(test_samples)
 
@@ -93,6 +96,11 @@ config = TimeSeriesTransformerConfig(
     d_model=64,
     num_heads=4,
     activation_function="relu",
+    num_static_categorical_features = 1,
+    num_static_real_features = 1,
+    lags_sequence= [0],
+feature_size = 8,
+
 )
 
 model = TimeSeriesTransformerForPrediction(config).to(device)
@@ -119,14 +127,18 @@ for epoch in range(num_epochs):
             past_values=past_values,
             past_time_features=past_time_features,
             past_observed_mask=past_observed_mask,
-            # static_categorical_features=torch.zeros((batch_size, 1), dtype=torch.int).to(device),
-            static_real_features = torch.zeros((batch_size, 1), dtype=torch.int).to(device),
+            static_categorical_features=torch.ones((batch_size, 1), dtype=torch.int).to(device),
+            static_real_features = torch.ones((batch_size, 1), dtype=torch.int).to(device),
             future_values=future_values,
-            future_time_features=torch.zeros((batch_size, n_future_steps, 4), dtype=torch.int).to(device),
+            future_time_features=torch.ones((batch_size, n_future_steps, 4), dtype=torch.int).to(device),
         )
 
         # Loss (assuming outputs and future_values are compatible)
-        loss = torch.nn.functional.mse_loss(outputs, future_values)
+
+        # loss = torch.nn.functional.mse_loss(outputs, future_values)
+
+        loss = outputs['loss']
+        print(loss)
         total_loss += loss.item()
 
         # Backward pass and optimization

@@ -5,7 +5,7 @@ import statsmodels.tsa.holtwinters as ets
 import numpy as np
 
 weather_path = '../../data/weather.csv'
-df = pd.read_csv(weather_path, parse_dates=['date'])
+df = pd.read_csv(weather_path, index_col='date', parse_dates=['date'])
 
 # Raw - add
 y = df["temperature"]

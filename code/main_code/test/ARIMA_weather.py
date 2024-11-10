@@ -2,7 +2,7 @@ import sys
 import pandas as pd
 sys.path.append('../component')  # Ensure sys is imported before using it
 from utils import *
-from class_ARIMA_model import ARIMA_model
+from class_TS_model_classical import ARIMA_model, SARIMA_Model
 from class_EDA import EDA
 import os
 os.getcwd()

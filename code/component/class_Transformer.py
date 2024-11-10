@@ -1,3 +1,5 @@
+import pdb
+
 from huggingface_hub import hf_hub_download
 import torch
 from transformers import TimeSeriesTransformerModel
@@ -11,6 +13,7 @@ model = TimeSeriesTransformerModel.from_pretrained("huggingface/time-series-tran
 
 # during training, one provides both past and future values
 # as well as possible additional features
+pdb.set_trace()
 outputs = model(
     past_values=batch["past_values"],
     past_time_features=batch["past_time_features"],
@@ -20,7 +23,8 @@ outputs = model(
     # static_real_features=batch["static_real_features"],
     static_real_features =torch.zeros((64, 1), dtype=torch.int),
     future_values=batch["future_values"],
-    # future_time_features=batch["future_time_features"]
+    future_time_features=batch["future_time_features"]
 )
 
 last_hidden_state = outputs.last_hidden_state
+

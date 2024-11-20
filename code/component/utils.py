@@ -548,14 +548,15 @@ def figure_table(df, title):
                 axs[row, col].set_yticks([])
 
     plt.tight_layout(rect=[0, 0.03, 1, 0.95])
-    plt.show()
+    # plt.show()
     return fig
 
 def prepare_arima_data(path, target):
     df = pd.read_csv(path, parse_dates=['date'])
 
-    df_train, df_temp = train_test_split(df, test_size=0.3, shuffle=False)
-    df_test, df_val = train_test_split(df_temp, test_size=0.5, shuffle=False)
+    train_size = int(df.shape[0] * 0.8)
+    df_train = df[:train_size]
+    df_test = df[train_size:]
 
     df_train['date'] = pd.to_datetime(df_train['date'])
     df_train.set_index('date', inplace=True)
@@ -564,33 +565,25 @@ def prepare_arima_data(path, target):
     df_test.set_index('date', inplace=True)
 
     train = df_train[target].values.reshape(-1, 1)
-    print('train data shape:', train.shape)
-
     test = df_test[target].values.reshape(-1, 1)
-    validation = df_val[target].values.reshape(-1, 1)
 
-    return df_train, df_test, df_val, train, test, validation
+    return df_train, df_test, train, test
 
 
-def ARIMA_results(ar_order, ma_order, inte_order, df_train, df_test, train, test, validation):
+def ARIMA_results(ar_order, ma_order, inte_order, df_train, df_test, train, test):
     arma = ARIMA_model(AR_order=ar_order, MA_order=ma_order, Inte_order=inte_order)
     arma.fit(train)
 
     prediction = arma.predict(train)
     forecast_test = arma.forecast(len(test))
-    forecast_val = arma.forecast(len(validation))
 
     train_err, train_err_mse = cal_err(prediction.tolist(), train[:, 0].tolist())
     test_err, test_err_mse = cal_err(forecast_test.tolist(), test[:, 0].tolist())
-    val_err, val_err_mse = cal_err(forecast_val.tolist(), validation[:, 0].tolist())
 
     train_plt_1 = plt_prediction(df_train[:100], prediction[:100])
     test_plt_1 = plt_forecast(df_test, forecast_test)
 
-    print('prediction error MSE:', train_err_mse)
-    print('test error MSE:', test_err_mse)
-    print('validation error MSE:', val_err_mse)
-    return train_err, test_err, train_err_mse, test_err_mse, train_plt_1, test_plt_1
+    return prediction, forecast_test, train_err, train_err_mse, test_err, test_err_mse, train_plt_1, test_plt_1
 
 
 def plot_metric_table(df, title):

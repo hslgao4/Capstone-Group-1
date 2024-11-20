@@ -1,6 +1,7 @@
 import sys
 sys.path.append('../../component')
 from utils import *
+import torch
 from class_LSTM import LSTM, BiLSTM, Seq2SeqLSTM
 from torch.utils.data import DataLoader, TensorDataset
 

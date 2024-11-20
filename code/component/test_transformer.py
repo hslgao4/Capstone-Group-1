@@ -1,14 +1,18 @@
 import pdb
-
 import pandas as pd
 import torch
 from torch.utils.data import Dataset, DataLoader
 from sklearn.preprocessing import MinMaxScaler
 from transformers import TimeSeriesTransformerForPrediction, TimeSeriesTransformerConfig
-import joblib
 
-torch.cuda.set_device(0)
-device = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
+
+# torch.cuda.set_device(0)
+# device = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
+
+gpu = 0
+device = torch.device(gpu if torch.cuda.is_available() else "cpu")
+if torch.cuda.is_available():
+    torch.cuda.set_device(gpu)
 
 # Load the data
 path = '../data/weather.csv'
@@ -99,7 +103,7 @@ config = TimeSeriesTransformerConfig(
     num_static_categorical_features = 1,
     num_static_real_features = 1,
     lags_sequence= [0],
-feature_size = 8,
+    feature_size = 8
 
 )
 
@@ -113,6 +117,10 @@ num_epochs = 10
 for epoch in range(num_epochs):
     model.train()
     total_loss = 0
+
+    all_actual_values = []
+    all_predicted_values = []
+
     for batch in train_loader:
         optimizer.zero_grad()
 
@@ -134,18 +142,27 @@ for epoch in range(num_epochs):
         )
 
         # Loss (assuming outputs and future_values are compatible)
-
         # loss = torch.nn.functional.mse_loss(outputs, future_values)
 
-        loss = outputs['loss']
-        print(loss)
-        total_loss += loss.item()
+        predicted_values = outputs.sequences[:, -n_future_steps:]
+        all_predicted_values.append(predicted_values.cpu())  # Collect predictions
+        all_actual_values.append(future_values.cpu())        # Collect actual values
 
-        # Backward pass and optimization
+        loss = outputs['loss']
+        # print(loss)
+        total_loss += loss.item()
         loss.backward()
         optimizer.step()
 
-    print(f"Epoch [{epoch + 1}/{num_epochs}], Loss: {total_loss / len(train_loader):.4f}")
+    # Concatenate predictions and actual values for the entire epoch
+    all_predicted_values = torch.cat(all_predicted_values, dim=0)
+    all_actual_values = torch.cat(all_actual_values, dim=0)
+
+    print(f"Epoch {epoch+1}/{num_epochs}, Loss: {total_loss / len(train_loader)}")
+
+    # Optional: print or inspect predictions for the current epoch
+    print("Actual values for training data:", all_actual_values)
+    print("Predicted values for training data:", all_predicted_values)
 
 # Save the trained model
 # torch.save(model.state_dict(), 'time_series_transformer_model.pth')

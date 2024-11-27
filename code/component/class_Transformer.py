@@ -1,29 +1,35 @@
-import pdb
-from huggingface_hub import hf_hub_download
-import torch
-from transformers import TimeSeriesTransformerModel
+from utils import *
 
-file = hf_hub_download(
-    repo_id="hf-internal-testing/tourism-monthly-batch", filename="train-batch.pt", repo_type="dataset"
-)
-batch = torch.load(file)
+class PositionalEncoding(nn.Module):
+    def __init__(self, d_model, dropout=0.1, max_len=5000):
+        super(PositionalEncoding, self).__init__()
+        self.dropout = nn.Dropout(p=dropout)
 
-model = TimeSeriesTransformerModel.from_pretrained("huggingface/time-series-transformer-tourism-monthly")
+        pe = torch.zeros(max_len, d_model)
+        position = torch.arange(0, max_len, dtype=torch.float).unsqueeze(1)
+        div_term = torch.exp(torch.arange(0, d_model, 2).float() * (-np.log(10000.0) / d_model))
+        pe[:, 0::2] = torch.sin(position * div_term)
+        pe[:, 1::2] = torch.cos(position * div_term)
+        pe = pe.unsqueeze(0).transpose(0, 1)
+        self.register_buffer('pe', pe)
 
-# during training, one provides both past and future values
-# as well as possible additional features
-pdb.set_trace()
-outputs = model(
-    past_values=batch["past_values"],
-    past_time_features=batch["past_time_features"],
-    past_observed_mask=batch["past_observed_mask"],
-    static_categorical_features=batch["static_categorical_features"],
-    # static_categorical_features = torch.zeros((64, 1), dtype=torch.int),
-    static_real_features=batch["static_real_features"],
-    # static_real_features =torch.zeros((64, 1), dtype=torch.int),
-    future_values=batch["future_values"],
-    future_time_features=batch["future_time_features"]
-)
+    def forward(self, x):
+        x = x + self.pe[:x.size(0), :]
+        return self.dropout(x)
 
-last_hidden_state = outputs.last_hidden_state
+class TransformerModel(nn.Module):
+    def __init__(self, input_dim=1, d_model=64, nhead=4, num_layers=2, dropout=0.2):
+        super(TransformerModel, self).__init__()
 
+        self.encoder = nn.Linear(input_dim, d_model)
+        self.pos_encoder = PositionalEncoding(d_model, dropout)
+        encoder_layers = nn.TransformerEncoderLayer(d_model, nhead)
+        self.transformer_encoder = nn.TransformerEncoder(encoder_layers, num_layers)
+        self.decoder = nn.Linear(d_model, 1)
+
+    def forward(self, x):
+        x = self.encoder(x)
+        x = self.pos_encoder(x)
+        x = self.transformer_encoder(x)
+        x = self.decoder(x[:, -1, :])
+        return x

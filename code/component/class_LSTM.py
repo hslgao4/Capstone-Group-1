@@ -1,7 +1,7 @@
 from utils import *
 
 class LSTM(nn.Module):
-    def __init__(self, input_size, hidden_size, num_layers, output_size):
+    def __init__(self, hidden_size, num_layers, input_size=1, output_size=1):
         super(LSTM, self).__init__()
         self.num_layers = num_layers
         self.hidden_size = hidden_size

@@ -12,6 +12,12 @@ import copy
 import seaborn as sns
 from sklearn.metrics import mean_squared_error
 from sklearn.metrics import mean_absolute_error
+import torch
+from tqdm import tqdm
+import torch.nn as nn
+from torch.utils.data import DataLoader, TensorDataset
+from sklearn.preprocessing import StandardScaler
+from torch.optim.lr_scheduler import ReduceLROnPlateau
 from sklearn.model_selection import train_test_split
 from statsmodels.tsa.statespace.sarimax import SARIMAX
 from sklearn.base import BaseEstimator
@@ -20,10 +26,7 @@ from sklearn.model_selection import TimeSeriesSplit, GridSearchCV
 from prettytable import PrettyTable
 import optuna
 import sys
-import torch
-import torch.nn as nn
 from sklearn.preprocessing import MinMaxScaler
-from torch.utils.data import DataLoader, TensorDataset
 from sympy import rotations
 
 sys.path.append('../component')
@@ -601,32 +604,97 @@ def plot_metric_table(df, title):
 # LSTM
 def sliding_windows(data, seq_length):
     x, y = [], []
-    for i in range(len(data) - seq_length - 1):
+    # for i in range(len(data) - seq_length - 1):
+    for i in range(len(data) - seq_length):
         _x = data[i:(i + seq_length)]
         _y = data[i + seq_length]
         x.append(_x)
         y.append(_y)
-    return np.array(x), np.array(y)
+    # return np.array(x), np.array(y)
+    return x, y
 
+'''Transformer functions'''
+# prepare transformer data
+def pre_transformer_data(path, target, seq_length):
+    df = pd.read_csv(path)
+    train_size = int(df.shape[0] * 0.8)
+    df_train = df[:train_size]
+    df_test = df[train_size:]
 
+    data_train = df_train[target].to_numpy().reshape(-1, 1)
+    data_test = df_test[target].to_numpy().reshape(-1, 1)
+
+    scaler = StandardScaler()
+    data_train_t = scaler.fit_transform(data_train).flatten().tolist()
+    data_test_t = scaler.transform(data_test).flatten().tolist()
+
+    x, y = sliding_windows(data_train_t, seq_length)
+    x_train, y_train = torch.tensor(x, dtype=torch.float32).view(-1, seq_length, 1), torch.tensor(y, dtype=torch.float32).view(-1, 1)
+
+    x, y = sliding_windows(data_test_t, seq_length)
+    x_test, y_test = torch.tensor(x, dtype=torch.float32).view(-1, seq_length, 1), torch.tensor(y, dtype=torch.float32).view(-1, 1)
+
+    return x_train, y_train, x_test, y_test, scaler
+
+def set_dataloader(x_train, y_train, shuffle=True, batch_size=32, num_workers=6):
+    train_dataset = TensorDataset(x_train, y_train)
+    train_loader = DataLoader(train_dataset, batch_size=batch_size, shuffle=shuffle, num_workers=num_workers)
+    return train_loader
+
+def transformer_train(model, train_loader, optimizer, criterion, epochs, device):
+    for epoch in range(epochs):
+        model.train()
+        total_loss = 0
+
+        for batch in train_loader:
+            x_batch, y_batch = batch
+            x_batch, y_batch = x_batch.to(device), y_batch.to(device)
+
+            optimizer.zero_grad()
+            outputs = model(x_batch)
+            loss = criterion(outputs, y_batch)
+            loss.backward()
+            optimizer.step()
+            total_loss += loss.item()
+        print(f'Epoch [{epoch + 1}/{epochs}], Loss: {total_loss / len(train_loader):.8f}')
+
+    return model
+
+def transformer_eval(model, test_loader, criterion, device):
+    model.eval()
+    with torch.no_grad():
+        predictions = []
+        total_loss = 0
+        for batch in test_loader:
+            x_batch, y_batch = batch
+            x_batch, y_batch = x_batch.to(device), y_batch.to(device)
+            outputs = model(x_batch)
+            loss = criterion(outputs, y_batch)
+
+            total_loss += loss.item()
+            predictions.extend(outputs.squeeze().tolist())
+        print(f'Test Loss: {total_loss / len(test_loader):.4f}')
+
+    return predictions
+
+'''LSTM functions'''
 # prepare data for LSTM
-def pre_lstm_data(path, column, seq_length):
+def pre_lstm_data(path, target, seq_length):
     training_set = pd.read_csv(path)
 
-    data = training_set[column].values.astype(float)
+    data = training_set[target].values.astype(float)
     scaler = MinMaxScaler(feature_range=(-1, 1))
     data = scaler.fit_transform(data.reshape(-1, 1))
 
     print('seq_length:', seq_length)
 
     X, y = sliding_windows(data, seq_length)
+    X, y = np.array(X), np.array(y)
 
-    # Split into train/test sets
     train_size = int(len(X) * 0.8)
     X_train, y_train = X[:train_size], y[:train_size]
     X_test, y_test = X[train_size:], y[train_size:]
 
-    # Convert to PyTorch tensors
     X_train = torch.FloatTensor(X_train)
     y_train = torch.FloatTensor(y_train)
     X_test = torch.FloatTensor(X_test)
@@ -634,18 +702,39 @@ def pre_lstm_data(path, column, seq_length):
 
     return X_train, y_train, X_test, y_test, scaler
 
-def lstm_loop(lstm, data_loader, device, criterion):
-    lstm.eval()
+def lstm_train(name, model, train_loader, optimizer, criterion, epochs, device):
+    for epoch in range(epochs):
+        model.train()
+        total_loss = 0
+        for X_batch, y_batch in train_loader:
+            X_batch, y_batch = X_batch.to(device), y_batch.to(device)
+
+            optimizer.zero_grad()
+            outputs = model(X_batch)
+            loss = criterion(outputs, y_batch)
+            loss.backward()
+            optimizer.step()
+
+            total_loss += loss.item()
+
+        if epoch % 100 == 0:
+            print(f'Epoch [{epoch + 1}/{epochs}], Loss: {total_loss / len(train_loader):.8f}')
+    torch.save(model.state_dict(), f'{name}_weights.pt')
+    return model
+
+
+def lstm_eval(model, scaler, data_loader, device, criterion):
+    model.eval()
     with torch.no_grad():
         total_loss = 0
         predictions = []
         for X_batch, y_batch in data_loader:
             X_batch, y_batch = X_batch.to(device), y_batch.to(device)
-            outputs = lstm(X_batch)
+            outputs = model(X_batch)
             loss = criterion(outputs, y_batch)
             total_loss += loss.item()
             predictions.append(outputs.cpu())
-
     print('loss:', total_loss / len(data_loader))
 
-    return predictions, total_loss / len(data_loader)
+    predictions = scaler.inverse_transform(torch.cat(predictions).numpy())
+    return predictions

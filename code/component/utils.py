@@ -572,23 +572,6 @@ def prepare_arima_data(path, target):
 
     return df_train, df_test, train, test
 
-
-def ARIMA_results(ar_order, ma_order, inte_order, df_train, df_test, train, test):
-    arma = ARIMA_model(AR_order=ar_order, MA_order=ma_order, Inte_order=inte_order)
-    arma.fit(train)
-
-    prediction = arma.predict(train)
-    forecast_test = arma.forecast(len(test))
-
-    train_err, train_err_mse = cal_err(prediction.tolist(), train[:, 0].tolist())
-    test_err, test_err_mse = cal_err(forecast_test.tolist(), test[:, 0].tolist())
-
-    train_plt_1 = plt_prediction(df_train[:100], prediction[:100])
-    test_plt_1 = plt_forecast(df_test, forecast_test)
-
-    return prediction, forecast_test, train_err, train_err_mse, test_err, test_err_mse, train_plt_1, test_plt_1
-
-
 def plot_metric_table(df, title):
     fig, ax = plt.subplots(figsize=(8, 2))
     ax.xaxis.set_visible(False)
@@ -717,8 +700,8 @@ def lstm_train(name, model, train_loader, optimizer, criterion, epochs, device):
 
             total_loss += loss.item()
 
-        if epoch % 100 == 0:
-            print(f'Epoch [{epoch + 1}/{epochs}], Loss: {total_loss / len(train_loader):.8f}')
+        if epoch % 10 == 0:
+            print(f'Epoch [{epoch+1}/{epochs}], Loss: {total_loss / len(train_loader):.8f}')
     torch.save(model.state_dict(), f'{name}_weights.pt')
     return model
 

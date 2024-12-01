@@ -51,7 +51,7 @@ class df_weather_results:
         arma_test_err_acf_d = plt_ACF(arma_test_err_d, 40)
 
         # Optuna(12,11)
-        arma_train_err_o, arma_test_err_o, arma_train_mse_o, arma_test_mse_o, arma_train_plt_o, arma_test_plt_o = ARIMA_results(6, 6, 0, df_train, df_test, train, test)
+        arma_train_err_o, arma_test_err_o, arma_train_mse_o, arma_test_mse_o, arma_train_plt_o, arma_test_plt_o = ARIMA_results(12, 11, 0, df_train, df_test, train, test)
 
         arma_train_err_acf_o = plt_ACF(arma_train_err_o, 40)
         arma_test_err_acf_o = plt_ACF(arma_test_err_o, 40)

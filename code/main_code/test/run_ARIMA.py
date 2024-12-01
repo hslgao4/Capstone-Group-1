@@ -7,10 +7,24 @@ from class_EDA import EDA
 import os
 os.getcwd()
 
-# prepare the data for the model
+#########################################################################
+def run_arima(path, target, ar_order, ma_order, inte_order):
+    df_train, df_test, train, test = prepare_data(path, target)
+
+    model = ARIMA_model(AR_order=ar_order, MA_order=ma_order, Inte_order=inte_order)
+    model.fit(train)
+
+    pred = model.predict(train)
+    fore = model.forecast(test)
+
+    return pred, fore
+
+
+#########################################################################
 path = '../data/weather.csv'
 target = 'temperature'
-df_train, df_test, df_val, train, test, validation = prepare_data(path, target)
+
+
 #%%
 '''AR model'''
 # based on ACF/PACF shows a clear AR pattern with order 1 or 2, AR(2) has low MSE

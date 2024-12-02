@@ -14,22 +14,7 @@ path = '../../data/weather.csv'
 eda = EDA(path)
 df = eda.read_data()
 
-ts_plot = eda.ts_plots(df) # the line plot of the target
-ts_plot.show()
-
-acf_plot = eda.acf_plot(df, 200, Col=1) # the ACF plot of the target
-acf_plot.show()
-
-acf_pacf = eda.acf_pacf_plot(df, 80, Col=1) # the ACF and PACF plot
-acf_pacf.show()
-
-rol = eda.rolling_mean_var(df, Col=1) # the rolling mean and variance
-rol.show()
-
-decom = eda.decomposition(df, 144, Col=1) # the time series decomposition
-decom.show()
-
-eda.stationarity(df) # check stationarity
+ts_plt, acf, acf_pacf, rolling_mean_var, decomposition = run_eda(path, 100, 144)
 
 
 '''Prepare the data for the model: 80% train, 20% test'''

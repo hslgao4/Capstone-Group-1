@@ -5,7 +5,7 @@ import torch
 from class_LSTM import LSTM, BiLSTM, Seq2SeqLSTM
 
 ##########################################
-def set_data(path, target, seq_length):
+def set_data(path, target, seq_length, batch_size):
     X_train, y_train, X_test, y_test, scaler = pre_lstm_data(path, target, seq_length)
     train_loader = set_dataloader(X_train, y_train, batch_size=batch_size, shuffle=True)
     test_loader = set_dataloader(X_test, y_test, batch_size=batch_size, shuffle=False)
@@ -22,8 +22,8 @@ def run_lstm(dataset, train_loader, model_name, epochs, learning_rate, hidden_si
     criterion = nn.MSELoss()
     optimizer = torch.optim.Adam(model.parameters(), lr=learning_rate)
     train_model = lstm_train(model_name, model, train_loader, optimizer, criterion, epochs, device)
+    torch.save(train_model.state_dict(), f'../main/{dataset}_{model_name}_weights.pt')
     torch.save(train_model.state_dict(), f'{dataset}_{model_name}_weights.pt')
-
     return model
 
 def lstm_eval(model_name, dataset, model, test_loader, scaler):
@@ -47,51 +47,51 @@ def lstm_eval(model_name, dataset, model, test_loader, scaler):
     return predictions
 
 #Example use#################################################################################################################
-path = '../../data/weather.csv'
-target = 'temperature'
-learning_rate = 0.001
-batch_size = 128 * 20
-
-##################################################################################################################
-dataset = 'wea'
-
-'''LSTM'''
-model_name = 'lstm'
-
-seq_length = 30
-epochs = 350
-hidden_size = 2
-num_layers = 1
-
-
-train_loader, test_loader, scaler, actual_test = set_data(path, target, seq_length)
-model = run_lstm(dataset, train_loader, model_name, epochs, learning_rate, hidden_size, num_layers)
-predictions = lstm_eval(model_name, dataset, model, test_loader, scaler)
-MSE(actual_test, predictions)
-##################################################################################################################
-'''BiLSTM'''
-model_name='Bilstm'
-seq_length = 2
-hidden_size = 64 * 2
-num_layers = 2 + 1
-epochs = 10
-
-train_loader, test_loader, scaler, actual_test = set_data(path, target, seq_length)
-model = run_lstm(dataset, train_loader, model_name, epochs, learning_rate, hidden_size, num_layers)
-predictions = lstm_eval(model_name, dataset, model, test_loader, scaler)
-MSE(actual_test, predictions)
-
+# path = '../../data/weather.csv'
+# target = 'temperature'
+# learning_rate = 0.001
+# batch_size = 128 * 20
+#
 # ##################################################################################################################
-'''Seq2seq'''
-model_name='seq2seq'
-seq_length = 5
-batch_size = 64 * 2
-hidden_size = 64
-num_layers = 2
-epochs = 100
-
-
-train_loader, test_loader, scaler, actual_test = set_data(path, target, seq_length)
-model = run_lstm(dataset, train_loader, model_name, epochs, learning_rate, hidden_size, num_layers)
-predictions = lstm_eval(model_name, dataset, model, test_loader, scaler)
-MSE(actual_test, predictions)
+# dataset = 'wea'
+#
+# '''LSTM'''
+# model_name = 'lstm'
+#
+# seq_length = 30
+# epochs = 350
+# hidden_size = 2
+# num_layers = 1
+#
+#
+# train_loader, test_loader, scaler, actual_test = set_data(path, target, seq_length, batch_size)
+# model = run_lstm(dataset, train_loader, model_name, epochs, learning_rate, hidden_size, num_layers)
+# predictions = lstm_eval(model_name, dataset, model, test_loader, scaler)
+# MSE(actual_test, predictions)
+# ##################################################################################################################
+# '''BiLSTM'''
+# model_name='Bilstm'
+# seq_length = 2
+# hidden_size = 64 * 2
+# num_layers = 2 + 1
+# epochs = 10
+#
+# train_loader, test_loader, scaler, actual_test = set_data(path, target, seq_length, batch_size)
+# model = run_lstm(dataset, train_loader, model_name, epochs, learning_rate, hidden_size, num_layers)
+# predictions = lstm_eval(model_name, dataset, model, test_loader, scaler)
+# MSE(actual_test, predictions)
+#
+# # ##################################################################################################################
+# '''Seq2seq'''
+# model_name='seq2seq'
+# seq_length = 5
+# batch_size = 64 * 2
+# hidden_size = 64
+# num_layers = 2
+# epochs = 100
+#
+#
+# train_loader, test_loader, scaler, actual_test = set_data(path, target, seq_length, batch_size)
+# model = run_lstm(dataset, train_loader, model_name, epochs, learning_rate, hidden_size, num_layers)
+# predictions = lstm_eval(model_name, dataset, model, test_loader, scaler)
+# MSE(actual_test, predictions)

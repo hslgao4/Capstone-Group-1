@@ -1,7 +1,7 @@
 from utils import *
 
 class LSTM(nn.Module):
-    def __init__(self, hidden_size, num_layers, input_size=1, output_size=1):
+    def __init__(self, hidden_size=2, num_layers=1, input_size=1, output_size=1):
         super(LSTM, self).__init__()
         self.num_layers = num_layers
         self.hidden_size = hidden_size
@@ -18,7 +18,7 @@ class LSTM(nn.Module):
         return out
 
 class BiLSTM(nn.Module):
-    def __init__(self, hidden_size, num_layers, input_size=1, output_size=1):
+    def __init__(self, hidden_size=2, num_layers=1, input_size=1, output_size=1):
         super(BiLSTM, self).__init__()
         self.lstm = nn.LSTM(input_size, hidden_size, num_layers, batch_first=True, bidirectional=True)
         self.fc = nn.Linear(hidden_size * 2, output_size)  # Multiply hidden size by 2 for bidirectional
@@ -30,7 +30,7 @@ class BiLSTM(nn.Module):
 
 
 class Seq2SeqLSTM(nn.Module):
-    def __init__(self, hidden_size, num_layers, input_size=1, output_size=1):
+    def __init__(self, hidden_size=2, num_layers=1, input_size=1, output_size=1):
         super(Seq2SeqLSTM, self).__init__()
         self.hidden_size = hidden_size
         self.num_layers = num_layers

@@ -5,7 +5,7 @@ import torch
 from class_LSTM import LSTM, BiLSTM, Seq2SeqLSTM
 
 ##########################################
-def set_data(path, target, seq_length, batch_size):
+def set_lstm_data(path, target, seq_length, batch_size=128):
     X_train, y_train, X_test, y_test, scaler = pre_lstm_data(path, target, seq_length)
     train_loader = set_dataloader(X_train, y_train, batch_size=batch_size, shuffle=True)
     test_loader = set_dataloader(X_test, y_test, batch_size=batch_size, shuffle=False)
@@ -13,7 +13,7 @@ def set_data(path, target, seq_length, batch_size):
     return train_loader, test_loader, scaler, actual_test
 
 
-def run_lstm(dataset, train_loader, model_name, epochs, learning_rate, hidden_size, num_layers):
+def run_lstm(dataset, train_loader, model_name, epochs=100, learning_rate=0.001, hidden_size=2, num_layers=1):
     device = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
     models = {'lstm': LSTM,
               'Bilstm': BiLSTM}

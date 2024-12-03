@@ -72,7 +72,7 @@ print('test forecast MSE:', round(mse_fore_ar_2_d, 4))
 "AR model - Optuna"
 #%%
 # final_order, mse_test = cus_grid_search_ar(train, test, 1, 10)
-study_ar, best_order_list_ar = optuna_search_ARIMA(train,
+study_ar, best_order_list_ar = optuna_search_ARIMA(train, test,
                                                    ar_max=20, ma_max=None, integ_order=None,
                                                    objective=ARIMA_objective, n_trials=20)
 

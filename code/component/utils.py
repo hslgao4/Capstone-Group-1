@@ -120,7 +120,7 @@ def Decomposition(df, item, date, period):
     S = res.seasonal
     R = res.resid
     fig = res.plot()
-    plt.xticks(rotation=45)
+    plt.xticks(rotation=65)
     # plt.show()
 
     new_df["season"] = S.tolist()
@@ -185,6 +185,7 @@ def plot_time_series(df):
     plt.ylabel('Magnitude')
     plt.title(f'{df.columns[1]} over Date')
     plt.xticks(rotation=45)
+    plt.tight_layout()
     # plt.show()
     return fig
 
@@ -326,6 +327,17 @@ def plt_train_test_forecast(df_train, df_test, rev_forecast):
     plt.title('Train vs Test vs Forecast')
     plt.legend()
     # plt.show()
+    return fig
+
+def plt_forecast(prediction, actual, length, model):
+    fig = plt.figure()
+    plt.plot(prediction[:length], label='Forecast')
+    plt.plot(actual[:length], label='Actual data')
+    plt.xlabel('Steps')
+    plt.ylabel('Magnitude')
+    plt.legend()
+    plt.title(f'{model}')
+    plt.tight_layout()
     return fig
 
 def tabel_pretty(df,title):
@@ -524,12 +536,12 @@ def cal_err(y_pred, Y_test):
 #     plt.show()
 
 # single data model performance
-def figure_table(df, title):
+def figure_table(df):
     n_rows = df.shape[0]
     n_cols = df.shape[1]
 
     fig, axs = plt.subplots(n_rows, n_cols, figsize=(n_cols * 3, n_rows * 4))
-    fig.suptitle(title, fontsize=16, fontweight='bold', x=0.6)
+
 
     for row in range(n_rows):
         for col in range(n_cols):
@@ -561,9 +573,11 @@ def prepare_arima_data(path, target):
     df_train = df[:train_size]
     df_test = df[train_size:]
 
+    df_train = df_train.copy()
     df_train['date'] = pd.to_datetime(df_train['date'])
     df_train.set_index('date', inplace=True)
 
+    df_test = df_test.copy()
     df_test['date'] = pd.to_datetime(df_test['date'])
     df_test.set_index('date', inplace=True)
 
@@ -721,3 +735,20 @@ def lstm_eval(model, scaler, data_loader, device, criterion):
 
     predictions = scaler.inverse_transform(torch.cat(predictions).numpy())
     return predictions
+
+def calculate_metrics(predictions, actuals):
+    predictions = np.array(predictions)
+    actuals = np.array(actuals)
+
+    # Normalize the data
+    actuals_min, actuals_max = np.min(actuals), np.max(actuals)
+    predictions = (predictions - actuals_min) / (actuals_max - actuals_min)
+    actuals = (actuals - actuals_min) / (actuals_max - actuals_min)
+
+    mse = np.mean((predictions - actuals) ** 2)
+    rmse = np.sqrt(mse)
+    mae = np.mean(np.abs(predictions - actuals))
+    print(f'MSE: {mse:.6f}, RMSE: {rmse:.6f}, MAE: {mae:.6f}')
+
+    return mse, rmse, mae
+

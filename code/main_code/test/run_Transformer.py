@@ -5,7 +5,7 @@ from class_transformer import TransformerModel
 
 ##################################################################################################################
 
-def set_data(path, target, seq_length, batch_size):
+def set_trans_data(path, target, seq_length, batch_size=128):
     x_train, y_train, x_test, y_test, scaler = pre_transformer_data(path, target, seq_length)
     train_loader = set_dataloader(x_train, y_train, shuffle=True, batch_size=batch_size)
     test_loader = set_dataloader(x_test, y_test, shuffle=False, batch_size=batch_size)

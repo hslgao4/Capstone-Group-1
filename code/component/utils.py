@@ -275,11 +275,11 @@ def GPAC_table(y, J=7, K=7):
     table = pd.DataFrame(temp)
     table = table.round(2)
     table.columns = range(1, K)
-    plt.figure(figsize=(12, 10))
+    fig = plt.figure(figsize=(12, 10))
     sns.heatmap(table, annot=True)
     plt.title("Generalized Partial Autocorrelation(GPAC) Table")
     plt.show()
-    return table
+    return fig
 
 # metric function
 def MSE(y_true, y_pred):
@@ -657,22 +657,22 @@ def transformer_train(model, train_loader, optimizer, criterion, epochs, device)
 
     return model
 
-def transformer_eval(model, test_loader, criterion, device):
-    model.eval()
-    with torch.no_grad():
-        predictions = []
-        total_loss = 0
-        for batch in test_loader:
-            x_batch, y_batch = batch
-            x_batch, y_batch = x_batch.to(device), y_batch.to(device)
-            outputs = model(x_batch)
-            loss = criterion(outputs, y_batch)
-
-            total_loss += loss.item()
-            predictions.extend(outputs.squeeze().tolist())
-        print(f'Test Loss: {total_loss / len(test_loader):.4f}')
-
-    return predictions
+# def transformer_eval(model, test_loader, criterion, device):
+#     model.eval()
+#     with torch.no_grad():
+#         predictions = []
+#         total_loss = 0
+#         for batch in test_loader:
+#             x_batch, y_batch = batch
+#             x_batch, y_batch = x_batch.to(device), y_batch.to(device)
+#             outputs = model(x_batch)
+#             loss = criterion(outputs, y_batch)
+#
+#             total_loss += loss.item()
+#             predictions.extend(outputs.squeeze().tolist())
+#         print(f'Test Loss: {total_loss / len(test_loader):.4f}')
+#
+#     return predictions
 
 '''LSTM functions'''
 # prepare data for LSTM
@@ -720,21 +720,21 @@ def lstm_train(name, model, train_loader, optimizer, criterion, epochs, device):
     return model
 
 
-def lstm_eval(model, scaler, data_loader, device, criterion):
-    model.eval()
-    with torch.no_grad():
-        total_loss = 0
-        predictions = []
-        for X_batch, y_batch in data_loader:
-            X_batch, y_batch = X_batch.to(device), y_batch.to(device)
-            outputs = model(X_batch)
-            loss = criterion(outputs, y_batch)
-            total_loss += loss.item()
-            predictions.append(outputs.cpu())
-    print('loss:', total_loss / len(data_loader))
-
-    predictions = scaler.inverse_transform(torch.cat(predictions).numpy())
-    return predictions
+# def lstm_eval(model, scaler, data_loader, device, criterion):
+#     model.eval()
+#     with torch.no_grad():
+#         total_loss = 0
+#         predictions = []
+#         for X_batch, y_batch in data_loader:
+#             X_batch, y_batch = X_batch.to(device), y_batch.to(device)
+#             outputs = model(X_batch)
+#             loss = criterion(outputs, y_batch)
+#             total_loss += loss.item()
+#             predictions.append(outputs.cpu())
+#     print('loss:', total_loss / len(data_loader))
+#
+#     predictions = scaler.inverse_transform(torch.cat(predictions).numpy())
+#     return predictions
 
 def calculate_metrics(predictions, actuals):
     predictions = np.array(predictions)

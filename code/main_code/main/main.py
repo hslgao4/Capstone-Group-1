@@ -2,23 +2,25 @@ import sys
 sys.path.append('../test')
 sys.path.append('../../component')
 from utils import *
+from class_LSTM import LSTM, BiLSTM, Seq2SeqLSTM
 from run_EDA import run_eda
 from run_ARIMA import run_arima
-from run_LSTM import *
-from run_Transformer import *
+from run_LSTM import set_lstm_data, lstm_eval
+from run_Transformer import set_trans_data, transformer_eval
+from class_transformer import TransformerModel
 device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
 
 weather_path = '../../data/weather.csv'
 air_pollution_path = '../../data/air_pollution.csv'
 power_path = '../../data/power_consumption.csv'
-traffic_path = '../../data/traffic.csv'
 
-def main(weather_path):#, air_pollution_path, power_path, traffic_path):
+
+def main(path):
     # EDA plots
     wea_ts, _, wea_acf_pacf, wea_rolling, wea_decom = run_eda(weather_path, 100, 144)
     air_ts, _, air_acf_pacf, air_rolling, air_decom = run_eda(air_pollution_path, 100, 24)
     pow_ts, _, pow_acf_pacf, pow_rolling, pow_decom = run_eda(power_path, 100, 144)
-    # tra_ts, tra_acf, tra_acf_pacf, tra_rolling, tra_decom = run_eda(traffic_path, 100, 24)
+
 
     eda_plots = pd.DataFrame({'Dataset': ['Temperature', 'Air Pollution', 'Power Consumption'],#, 'Traffic Volume'],
                               'Sequence plots': [wea_ts, air_ts, pow_ts],#, tra_ts],
@@ -61,51 +63,140 @@ def main(weather_path):#, air_pollution_path, power_path, traffic_path):
     train_loader, test_loader, scaler, actual_test = set_lstm_data(weather_path, target, seq_length)
     model = LSTM().to(device)
     pred_lstm = lstm_eval(model_name, dataset, model, test_loader, scaler)
+    calculate_metrics(pred_lstm, actual_test)
+    fig = plt_forecast(pred_lstm, actual_test, 500, 'LSTM')
+    fig.savefig('./pdf/LSTM.pdf', dpi=300, bbox_inches='tight')
+
 
     model_name = 'Bilstm'
     train_loader, test_loader, scaler, actual_test = set_lstm_data(weather_path, target, seq_length)
     model = BiLSTM().to(device)
     pred_bilstm = lstm_eval(model_name, dataset, model, test_loader, scaler)
+    calculate_metrics(pred_bilstm, actual_test)
+    fig = plt_forecast(pred_bilstm, actual_test, 500, 'Bi-LSTM')
+    fig.savefig('./pdf/Bilstm.pdf', dpi=300, bbox_inches='tight')
+    
 
     model_name = 'seq2seq'
     train_loader, test_loader, scaler, actual_test = set_lstm_data(weather_path, target, seq_length)
     model = Seq2SeqLSTM().to(device)
     pred_seq2seq = lstm_eval(model_name, dataset, model, test_loader, scaler)
+    calculate_metrics(pred_seq2seq, actual_test)
+    fig = plt_forecast(pred_seq2seq, actual_test, 500, 'Seq2Seq')
+    fig.savefig('./pdf/Seq2Seq.pdf', dpi=300, bbox_inches='tight')
+
 
     '''Transformer'''
-    seq_length = 10
-
     train_loader, test_loader, scaler, actual_test = set_trans_data(weather_path, target, seq_length)
     model = TransformerModel().to(device)
     pred_trans = transformer_eval(dataset, model, test_loader, scaler)
+    calculate_metrics(pred_trans, actual_test)
+    fig = plt_forecast(pred_trans, actual_test, 500, 'Transformer')
+    fig.savefig('./pdf/Transformer.pdf', dpi=300, bbox_inches='tight')
 
-#
+
+# def main(path, dataset, target, seq_length):
+def main():
+    # seq_length = 6
+    # path = '../../data/air_pollution.csv'
+    # target = 'pollution'
+    # dataset = 'air'
+
+    seq_length = 6
+    path = '../../data/power_consumption.csv'
+    target = 'power_consumption'
+    dataset = 'pow'
+
+    model_name = 'lstm'
+    train_loader, test_loader, scaler, actual_test = set_lstm_data(path, target, seq_length)
+    model = LSTM().to(device)
+    pred_lstm = lstm_eval(model_name, dataset, model, test_loader, scaler)
+    calculate_metrics(pred_lstm, actual_test)
+    fig = plt_forecast(pred_lstm, actual_test, 500, 'LSTM')
+    fig.savefig('./pdf/LSTM.pdf', dpi=300, bbox_inches='tight')
+
+    model_name = 'Bilstm'
+    train_loader, test_loader, scaler, actual_test = set_lstm_data(path, target, seq_length)
+    model = BiLSTM().to(device)
+    pred_bilstm = lstm_eval(model_name, dataset, model, test_loader, scaler)
+    calculate_metrics(pred_bilstm, actual_test)
+    fig = plt_forecast(pred_bilstm, actual_test, 500, 'Bi-LSTM')
+    fig.savefig('./pdf/Bilstm.pdf', dpi=300, bbox_inches='tight')
+
+    model_name = 'seq2seq'
+    train_loader, test_loader, scaler, actual_test = set_lstm_data(path, target, seq_length)
+    model = Seq2SeqLSTM().to(device)
+    pred_seq2seq = lstm_eval(model_name, dataset, model, test_loader, scaler)
+    calculate_metrics(pred_seq2seq, actual_test)
+    fig = plt_forecast(pred_seq2seq, actual_test, 500, 'Seq2Seq')
+    fig.savefig('./pdf/Seq2Seq.pdf', dpi=300, bbox_inches='tight')
+
+    '''Transformer'''
+    train_loader, test_loader, scaler, actual_test = set_trans_data(path, target, seq_length)
+    model = TransformerModel().to(device)
+    pred_trans = transformer_eval(dataset, model, test_loader, scaler)
+    calculate_metrics(pred_trans, actual_test)
+    fig = plt_forecast(pred_trans, actual_test, 500, 'Transformer')
+    fig.savefig('./pdf/Transformer.pdf', dpi=300, bbox_inches='tight')
+
 # if __name__ == '__main__':
 #     main(weather_path)
 
-'''Dataset: Power Consumption'''
-
-power_path = '../../data/power_consumption.csv'
-target = 'power_consumption'
-
-_, _, _, test = prepare_arima_data(power_path, target)
-
-### Classical models ###
-w_ar_d_pred, w_ar_d_fore = run_arima(weather_path, target, 2, 0, 0) # AR with domain knowledge - ACF/PACF
-calculate_metrics(w_ar_d_fore, test)
-fig = plt_forecast(w_ar_d_fore, test, 500, 'AR')
-
-w_ar_o_pred, w_ar_o_fore = run_arima(weather_path, target, 4, 0, 0)  # AR with Optuna
-calculate_metrics(w_ar_o_fore, test)
-fig = plt_forecast(w_ar_o_fore, test, 500, 'AR')
-
-fig.savefig('./pdf/AR.pdf', dpi=300, bbox_inches='tight')
-
-w_ma_o_pred, w_ma_o_fore = run_arima(weather_path, target, 0, 10, 0) # No MA pattern, set max MA order to 10
-fig = plt_forecast(w_ma_o_fore, test, 500, 'MA')
-
-w_arma_d_pred, w_arma_d_fore = run_arima(weather_path, target, 2, 3, 0) # GPAC
-w_arma_o_pred, w_arma_o_fore = run_arima(weather_path, target, 12, 11, 0) #Optuna
-
-w_arima_d_pred, w_arima_d_fore = run_arima(weather_path, target, 2, 3, 1) # GPAC
-w_arima_o_pred, w_arima_o_fore = run_arima(weather_path, target, 6, 0, 1) # Optuna
+# '''Dataset: Power Consumption'''
+#
+# power_path = '../../data/power_consumption.csv'
+# target = 'power_consumption'
+#
+# _, _, _, test = prepare_arima_data(power_path, target)
+#
+# ### Classical models ###
+# w_ar_d_pred, w_ar_d_fore = run_arima(power_path, target, 2, 0, 0) # AR with domain knowledge - ACF/PACF
+# calculate_metrics(w_ar_d_fore, test)
+# fig = plt_forecast(w_ar_d_fore, test, 500, 'AR')
+#
+# w_ar_o_pred, w_ar_o_fore = run_arima(power_path, target, 10, 0, 0)  # AR with Optuna
+# calculate_metrics(w_ar_o_fore, test)
+# fig = plt_forecast(w_ar_o_fore, test, 500, 'AR')
+#
+# fig.savefig('./pdf/AR.pdf', dpi=300, bbox_inches='tight')
+#
+# w_ma_o_pred, w_ma_o_fore = run_arima(power_path, target, 0, 10, 0) # No MA pattern, set max MA order to 10
+# fig = plt_forecast(w_ma_o_fore, test, 500, 'MA')
+# calculate_metrics(w_ma_o_fore, test)
+#
+# w_arma_d_pred, w_arma_d_fore = run_arima(power_path, target, 2, 2, 0) # GPAC
+# w_arma_o_pred, w_arma_o_fore = run_arima(power_path, target, 4, 5, 0) #Optuna
+#
+# w_arima_d_pred, w_arima_d_fore = run_arima(power_path, target, 2, 3, 1) # GPAC
+# w_arima_o_pred, w_arima_o_fore = run_arima(power_path, target, 12, 6, 1) # Optuna
+#
+#
+#
+#
+# '''Dataset: Air pollution '''
+#
+# path = '../../data/air_pollution.csv'
+# target = 'pollution'
+#
+# _, _, _, test = prepare_arima_data(path, target)
+#
+# ### Classical models ###
+# w_ar_d_pred, w_ar_d_fore = run_arima(path, target, 1, 0, 0) # AR with domain knowledge - ACF/PACF
+# calculate_metrics(w_ar_d_fore, test)
+# fig = plt_forecast(w_ar_d_fore, test, 500, 'AR')
+#
+# w_ar_o_pred, w_ar_o_fore = run_arima(path, target, 5, 0, 0)  # AR with Optuna
+# calculate_metrics(w_ar_o_fore, test)
+# fig = plt_forecast(w_ar_o_fore, test, 500, 'AR')
+#
+# fig.savefig('./pdf/AR.pdf', dpi=300, bbox_inches='tight')
+#
+# w_ma_o_pred, w_ma_o_fore = run_arima(path, target, 0, 10, 0) # No MA pattern, set max MA order to 10
+# fig = plt_forecast(w_ma_o_fore, test, 500, 'MA')
+# calculate_metrics(w_ma_o_fore, test)
+#
+# w_arma_d_pred, w_arma_d_fore = run_arima(path, target, 2, 2, 0) # GPAC
+# w_arma_o_pred, w_arma_o_fore = run_arima(path, target, 2, 6, 0) #Optuna
+#
+# w_arima_d_pred, w_arima_d_fore = run_arima(path, target, 2, 3, 1) # GPAC
+# w_arima_o_pred, w_arima_o_fore = run_arima(path, target, 10, 12, 1) # Optuna

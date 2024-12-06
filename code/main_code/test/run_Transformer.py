@@ -48,21 +48,3 @@ def transformer_eval(dataset, model, test_loader, scaler):
     prediction = scaler.inverse_transform(np.array(predictions).reshape(-1, 1))
     return prediction
 
-##################################################################################################################
-# path = '../../data/weather.csv'
-# dataset = 'wea'
-# target = 'temperature'
-#
-# seq_length = 10
-# epoches = 20
-# batch_size = 32
-#
-#
-# train_loader, test_loader, scaler, actual_test = set_data(path, target, seq_length, batch_size)
-# model = run_transformer(dataset, train_loader, epoches)
-# predictions = transformer_eval(dataset, model, test_loader, scaler)
-#
-# plt.figure()
-# plt.plot(actual_test[:100])
-# plt.plot(predictions[:100])
-# plt.show()

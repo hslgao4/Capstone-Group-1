@@ -51,10 +51,8 @@ def plt_rolling_mean_var(df, item_list):
             rolling_var.append(var)
         return rolling_mean, rolling_var
 
-    # Call rolling_mean_var with the item_list as the column name
     roll_mean, roll_var = rolling_mean_var(df, item_list)
 
-    # Plot the results
     fig = plt.figure()
 
     # Subplot 1: Rolling Mean
@@ -74,7 +72,6 @@ def plt_rolling_mean_var(df, item_list):
     plt.legend()
 
     plt.tight_layout()
-    # plt.show()
     return fig
 
 
@@ -121,7 +118,6 @@ def Decomposition(df, item, date, period):
     R = res.resid
     fig = res.plot()
     plt.xticks(rotation=65)
-    # plt.show()
 
     new_df["season"] = S.tolist()
     new_df["trend"] = T.tolist()
@@ -138,7 +134,6 @@ def Decomposition(df, item, date, period):
     plt.xticks(rotation=45)
     plt.tight_layout()
     plt.legend()
-    # plt.show()
 
     F = np.maximum(0, 1 - np.var(np.array(R))/np.var(np.array(T+R)))
     print(f'The strength of trend for this data set is {100*F:.2f}%')
@@ -155,6 +150,17 @@ def differencing(df, order, item):
         diff = df.iloc[i][item] - df.iloc[i-order][item]
         diff_list.append(diff)
     return diff_list
+
+# metric function
+def MSE(y_true, y_pred):
+    return mean_squared_error(y_true, y_pred)
+
+def RMSE(y_true, y_pred):
+    mse = mean_squared_error(y_true, y_pred)
+    return np.sqrt(mse)
+
+def MAE(y_true, y_pred):
+    return mean_absolute_error(y_true, y_pred)
 
 
 # reverse differencing
@@ -174,7 +180,6 @@ def ACF_PACF_Plot(y,lags):
     plt.subplot(2,1,2)
     plot_pacf(y, ax=plt.gca(), lags=lags)
     fig.tight_layout(pad=3)
-    # plt.show()
     return fig
 
 # simple line plot
@@ -186,9 +191,7 @@ def plot_time_series(df):
     plt.title(f'{df.columns[1]} over Date')
     plt.xticks(rotation=45)
     plt.tight_layout()
-    # plt.show()
     return fig
-
 
 
 # ACF plot
@@ -265,7 +268,6 @@ def cal_fi(j, k, ACF):
     return fi
 
 def GPAC_table(y, J=7, K=7):
-    # ACF = cal_ACF(y, J+K+1)
     ACF = acf(y, nlags=J + K + 1)
     temp = np.zeros((J, K - 1))
     for k in range(1, K):
@@ -279,54 +281,6 @@ def GPAC_table(y, J=7, K=7):
     sns.heatmap(table, annot=True)
     plt.title("Generalized Partial Autocorrelation(GPAC) Table")
     plt.show()
-    return fig
-
-# metric function
-def MSE(y_true, y_pred):
-    return mean_squared_error(y_true, y_pred)
-
-def RMSE(y_true, y_pred):
-    mse = mean_squared_error(y_true, y_pred)
-    return np.sqrt(mse)
-
-def MAE(y_true, y_pred):
-    return mean_absolute_error(y_true, y_pred)
-
-
-
-# plot
-def plt_forecast(df_test, rev_forecast):
-    fig = plt.figure()
-    plt.plot(df_test.index, df_test.iloc[:, 0], label='Test Data', color='red')
-    plt.plot(df_test.index, rev_forecast, label='Forecast', color='green')
-    plt.xlabel('Index')
-    plt.ylabel('Magnitude')
-    plt.legend()
-    plt.title('Test, and Predicted Values')
-    # plt.show()
-    return fig
-
-def plt_prediction(df_train, rev_pred):
-    fig = plt.figure()
-    plt.plot(df_train.index, df_train.iloc[:, 0], label='Train')
-    plt.plot(df_train.index, rev_pred, label='Prediction')
-    plt.xlabel('Index')
-    plt.ylabel('Magnitude')
-    plt.legend()
-    plt.title('Train vs Predicted values')
-    # plt.show()
-    return fig
-
-def plt_train_test_forecast(df_train, df_test, rev_forecast):
-    fig = plt.figure()
-    plt.plot(df_train.index, df_train.iloc[:, 0], label='Train', color='blue')
-    plt.plot(df_test.index, df_test.iloc[:, 0], label='Test', color='red')
-    plt.plot(df_test.index, rev_forecast, label='Forecast', color='green')
-    plt.xlabel('Index')
-    plt.ylabel('Magnitude')
-    plt.title('Train vs Test vs Forecast')
-    plt.legend()
-    # plt.show()
     return fig
 
 def plt_forecast(prediction, actual, length, model):
@@ -355,32 +309,13 @@ def neg_mean_squared_error(estimator, X, y=None):
     y_pred = estimator.predict(X)
     return -mean_squared_error(X.ravel(), y_pred)
 
-# grid_search with sk-learn
-def grid_sklearn(data, param_grid, model, n_splits=5):
-    tscv = TimeSeriesSplit(n_splits)
-
-    grid_search = GridSearchCV(estimator=model,
-                               param_grid=param_grid,
-                               cv=tscv,
-                               scoring=neg_mean_squared_error,
-                               verbose=1)
-
-    grid_search.fit(data)
-
-    print(f"Best parameters: {grid_search.best_params_}")
-    print(f"Lowest metric score: {-grid_search.best_score_}")
-
-    best_order = grid_search.best_params_[list(param_grid.keys())]
-    return best_order
-
-
 
 def ARIMA_objective(trial, train, test,
-                    ar_max=None, ma_max=None, integ_order=None):
+                    ar_max=None, ma_max=None, integ_max=None):
 
     ar_order = trial.suggest_int('AR_order', 1, ar_max) if ar_max is not None else 0
     ma_order = trial.suggest_int('MA_order', 1, ma_max) if ma_max is not None else 0
-    inte_order = integ_order if integ_order is not None else 0
+    inte_order = trial.suggest_int('Inte_order', 1, integ_max) if integ_max is not None else 0
 
     model = ARIMA_model(AR_order=ar_order, MA_order=ma_order, Inte_order=inte_order)
     model.fit(train)
@@ -390,11 +325,11 @@ def ARIMA_objective(trial, train, test,
     return mse
 
 def optuna_search_ARIMA(train, test,
-                        ar_max=None, ma_max=None, integ_order=None,
+                        ar_max=None, ma_max=None, integ_max=None,
                         objective=ARIMA_objective, n_trials=5):
 
     study = optuna.create_study(direction='minimize')
-    study.optimize(lambda trial: objective(trial, train, test, ar_max, ma_max, integ_order), n_trials=n_trials)
+    study.optimize(lambda trial: objective(trial, train, test, ar_max, ma_max, integ_max), n_trials=n_trials)
 
     print(f"Best parameters: {study.best_params}")
     print(f"Best MSE: {study.best_value}")
@@ -406,12 +341,13 @@ def optuna_search_ARIMA(train, test,
 
 # optuna SARIMA
 def SARIMA_objective(trial, data,
-                    ar_max=None, ma_max=None, integ_order=None,
+                    ar_max=None, ma_max=None, integ_max=None,
                     ar_s_max=None, ma_s_max=None, integ_s=None):
 
     ar_order = trial.suggest_int('AR_order', 1, ar_max) if ar_max is not None else 0
     ma_order = trial.suggest_int('MA_order', 1, ma_max) if ma_max is not None else 0
-    inte_order = integ_order if integ_order is not None else 0
+    inte_order = trial.suggest_int('Inte_order', 1, integ_max) if integ_max is not None else 0
+
     ar_s_order = trial.suggest_int('AR_s_order', 1, ar_s_max) if ar_s_max is not None else 0
     ma_s_order = trial.suggest_int('MA_s_order', 1, ma_s_max) if ma_s_max is not None else 0
     inte_s = integ_s if integ_s is not None else 0
@@ -454,7 +390,6 @@ def cus_grid_search_ar(data, test, min_order, max_order):
 
     final_order = min_order
     best_mse_test = float('inf')
-
 
     for order in range(min_order, max_order + 1):
         model_ar = ARIMA_model(AR_order=order)
@@ -500,42 +435,10 @@ def cal_err(y_pred, Y_test):
         e = Y_test[i] - y_pred[i]
         error.append(e)
         error_se.append(e**2)
-    # error_mean = np.mean(error)
-    # error_var = np.var(error)
     error_mse = np.mean(error_se)
     return error, error_mse
 
 
-
-# def figure_table(df, title):
-#     n_rows = df.shape[0]
-#     n_cols = df.shape[1]
-#
-#     fig, axs = plt.subplots(n_rows, n_cols, figsize=(n_cols * 3, n_rows * 4))  # Adjust size as needed
-#     fig.suptitle(title, fontsize=16, fontweight='bold', x=0.6)
-#
-#     # Loop through the DataFrame to plot each figure and display dataset names
-#     for row in range(n_rows):
-#         for col in range(n_cols):
-#             axs[row, col].axis('off')
-#
-#             if col == 0:
-#                 axs[row, col].text(0.5, 0.5, df.iloc[row, col], fontsize=14, fontweight='bold', va='center', ha='center',
-#                                    transform=axs[row, col].transAxes)
-#             else:
-#                 # Set column titles for figure plots
-#                 if row == 0:
-#                     axs[row, col].set_title(df.columns[col], fontsize=12, fontweight='bold')
-#
-#                 axs[row, col].imshow(df.iloc[row, col].canvas.buffer_rgba())
-#                 axs[row, col].set_xticks([])
-#                 axs[row, col].set_yticks([])
-#
-#     plt.tight_layout(rect=[0, 0.03, 1, 0.95])
-#     # plt.subplots_adjust(hspace=0.001)
-#     plt.show()
-
-# single data model performance
 def figure_table(df):
     n_rows = df.shape[0]
     n_cols = df.shape[1]
@@ -563,7 +466,6 @@ def figure_table(df):
                 axs[row, col].set_yticks([])
 
     plt.tight_layout(rect=[0, 0.03, 1, 0.95])
-    # plt.show()
     return fig
 
 def prepare_arima_data(path, target):
@@ -598,16 +500,13 @@ def plot_metric_table(df, title):
     plt.show()
 
 
-# LSTM
 def sliding_windows(data, seq_length):
     x, y = [], []
-    # for i in range(len(data) - seq_length - 1):
     for i in range(len(data) - seq_length):
         _x = data[i:(i + seq_length)]
         _y = data[i + seq_length]
         x.append(_x)
         y.append(_y)
-    # return np.array(x), np.array(y)
     return x, y
 
 '''Transformer functions'''
@@ -657,25 +556,8 @@ def transformer_train(model, train_loader, optimizer, criterion, epochs, device)
 
     return model
 
-# def transformer_eval(model, test_loader, criterion, device):
-#     model.eval()
-#     with torch.no_grad():
-#         predictions = []
-#         total_loss = 0
-#         for batch in test_loader:
-#             x_batch, y_batch = batch
-#             x_batch, y_batch = x_batch.to(device), y_batch.to(device)
-#             outputs = model(x_batch)
-#             loss = criterion(outputs, y_batch)
-#
-#             total_loss += loss.item()
-#             predictions.extend(outputs.squeeze().tolist())
-#         print(f'Test Loss: {total_loss / len(test_loader):.4f}')
-#
-#     return predictions
 
 '''LSTM functions'''
-# prepare data for LSTM
 def pre_lstm_data(path, target, seq_length):
     training_set = pd.read_csv(path)
 
@@ -720,22 +602,6 @@ def lstm_train(name, model, train_loader, optimizer, criterion, epochs, device):
     return model
 
 
-# def lstm_eval(model, scaler, data_loader, device, criterion):
-#     model.eval()
-#     with torch.no_grad():
-#         total_loss = 0
-#         predictions = []
-#         for X_batch, y_batch in data_loader:
-#             X_batch, y_batch = X_batch.to(device), y_batch.to(device)
-#             outputs = model(X_batch)
-#             loss = criterion(outputs, y_batch)
-#             total_loss += loss.item()
-#             predictions.append(outputs.cpu())
-#     print('loss:', total_loss / len(data_loader))
-#
-#     predictions = scaler.inverse_transform(torch.cat(predictions).numpy())
-#     return predictions
-
 def calculate_metrics(predictions, actuals):
     predictions = np.array(predictions)
     actuals = np.array(actuals)
@@ -751,4 +617,3 @@ def calculate_metrics(predictions, actuals):
     print(f'MSE: {mse:.6f}, RMSE: {rmse:.6f}, MAE: {mae:.6f}')
 
     return mse, rmse, mae
-

@@ -32,13 +32,13 @@ On three public datasets:
 
 ## Results
 * **Classical models:**
-![classical_model_results](research_paper/classical.pdf)
+![classical_model_results](./readme_fig/classical.jpg)
 
 * **Modern techniques:**
-![lstm_results](research_paper/modern.pdf)
+![lstm_results](./readme_fig/modern.jpg)
 
 * **State-of-the -art:**
-![transformer_results](research_paper/trans.pdf)
+![transformer_results](./readme_fig/trans.jpg)
 
 
 

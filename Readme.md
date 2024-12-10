@@ -30,15 +30,9 @@ On three public datasets:
 * **research_paper:** [academic research paper](./research_paper/research_paper.pdf) & latex folder
 
 
-## Results
-* **Classical models:**
-![classical_model_results](./readme_fig/classical.jpg)
+## Result from Transformer model
 
-* **Modern techniques:**
-![lstm_results](./readme_fig/modern.jpg)
-
-* **State-of-the -art:**
-![transformer_results](./readme_fig/trans.jpg)
+![transformer_results](./readme_fig/results.png)
 
 
 

@@ -1,5 +1,4 @@
-## Instruction for research paper
+## Instruction for research_paper
 
-- For your capstone project you need to write a research paper.
-- If you are submitting to any journal and conference you need to use their templates.
-
+- Contains the final academic research paper
+- Latex folders with all files

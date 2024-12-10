@@ -1,22 +1,8 @@
-## Time Series Data Generator 
+## Instruction for code
+  * **component**: all the defined function under [utils.py](./code/component/utils.py) & defined classes.
+  * **data**: raw data & processed data used in modeling
+  * **main code**
+    * **main:** main script to run the whole pipeline
+    * **test:** experiment test files
 
-### The goal is to create synthetic data for testing different models.
-
-  - I. Data without Exogenous Input
-    - Deterministic: customized function, sine, cosine, random, linear, exponential, random
-    - Stachastic: AR, MA, ARMA, ARIMA, SARIMA, Multipicative, non-linear AR/MA
-    
-
-  - II. Data with one Exogenous Input 
-    - Deterministic： I + random/sine/cosine/customized function ...
-    - Stachastic： By Box-Jenkins model, generating u(t) first using I, then generating y(t)
-    
-       { y(t) = G(q)*u(t) + H(q)*e(t) }
-    
-
-  - III. Data with more than one Exogenous Inputs 
-    - add more random/sine/cosine ... 
-    - TBD
-
-___
-## Model 
+### In order to run the pipeline including EDA plots, classical models, modern techniques(LSTM, Bi-LSTM, Seq2Seq) and state-of-the-art transformer, please run [main.py](/main_code/main/main.py)

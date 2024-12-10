@@ -1,5 +1,6 @@
 import matplotlib.pyplot as plt
 import statsmodels
+from matplotlib.lines import lineStyles
 from statsmodels.tsa.stattools import adfuller
 from statsmodels.tsa.stattools import kpss
 import pandas as pd
@@ -278,15 +279,15 @@ def GPAC_table(y, J=7, K=7):
     table = table.round(2)
     table.columns = range(1, K)
     fig = plt.figure(figsize=(12, 10))
-    sns.heatmap(table, annot=True)
+    sns.heatmap(table, annot=True, annot_kws={"size": 16})
     plt.title("Generalized Partial Autocorrelation(GPAC) Table")
     plt.show()
     return fig
 
 def plt_forecast(prediction, actual, length, model):
     fig = plt.figure()
-    plt.plot(prediction[:length], label='Forecast')
-    plt.plot(actual[:length], label='Actual data')
+    plt.plot(prediction[:length], label='Forecast', marker='*')
+    plt.plot(actual[:length], label='Actual data', marker='o')
     plt.xlabel('Steps')
     plt.ylabel('Magnitude')
     plt.legend()

@@ -22,16 +22,6 @@ df = power.loc[:, ['DateTime', 'Zone 1 Power Consumption']]
 df.columns = ['date', 'power_consumption']
 df.to_csv('./power_consumption.csv', index=False)
 
-# process traffic.csv
-traffic = pd.read_csv('./raw_data/traffic.csv')
-print(traffic.shape)
-print(traffic.columns)
-print(traffic.isnull().sum())
-
-df = traffic.loc[:, ['DateTime', 'Vehicles']]
-df.columns = ['date', 'vehicles']
-df.to_csv('./traffic.csv', index=False)
-
 # process weather.csv
 weather = pd.read_csv('./raw_data/weather.csv')
 print(weather.shape)

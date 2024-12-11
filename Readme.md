@@ -2,7 +2,7 @@
 ## Table of Content
 - [Project Overview](#project-overview)
 - [Repo structure](#repo-structure)
-- [Results and finding](#results-and-finding)
+
 
   
 ## Project Overview
@@ -28,11 +28,6 @@ On three public datasets:
 * **full_report:** [full report](./full_report/full_report.pdf) & latex folder
 * **presentation:** the presentation slides
 * **research_paper:** [academic research paper](./research_paper/research_paper.pdf) & latex folder
-
-
-## Result from Transformer model
-
-![transformer_results](./readme_fig/results.png)
 
 
 
